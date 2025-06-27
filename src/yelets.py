@@ -47,9 +47,9 @@ def execute(code: str, defines: dict | None = None) -> dict:
     return locals
 
 def execute_file(p: Path) -> dict:
-    with entry_path.open("r") as file:
+    with p.open("r") as file:
         code = file.read()
-    namespace = execute(code)
+    return execute(code)
 
 def main():
     parser = argparse.ArgumentParser()

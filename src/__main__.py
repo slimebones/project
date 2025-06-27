@@ -149,6 +149,7 @@ def build(args):
     # Collect projects.
     for source, subdirs, subfiles in cwd.walk():
         for file in subfiles:
+            # @todo We should be able to search for `project`, `project.y`, `project.jai`, etc. Project file implementation does not matter as long as we have driver for it. What matters, is complying to our standards - drivers should execute file in a way, that left us with a namespace map, with converted to python objects, including functions.
             if file == "project":
                 config_path = Path(source, file)
                 # We must have a name, or we consider project.cfg not matching our ideology.
@@ -198,9 +199,15 @@ def build(args):
     for i, project in enumerate(projects.values()):
         if i != 0:
             # Separate entries.
-            print("")
+            print()
 
         print(f"== BUILD: {project.name} ==")
+        build_function = project.context.get("build", None)
+        if build_function is None or not callable(build_function):
+            print(f"{colorama.Fore.DARK_GREY}No build procedure.{colorama.Fore.RESET}")
+            continue
+        # @todo Pass some context to custom build functions.
+        build_function()
 
 
 if __name__ == "__main__":
