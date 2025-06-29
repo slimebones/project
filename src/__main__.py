@@ -1,7 +1,9 @@
 # Project management tool.
 
 import argparse
+from typing import Any
 from os import PathLike
+import colorama
 import datetime
 from src import yelets
 import os
@@ -34,7 +36,7 @@ build_dir = Path(cwd, "build")
 class Project(struct):
     source: Path
     name: str
-    context: str
+    context: dict[str, Any]
 
 projects: dict[str, Project] = {}
 
@@ -59,6 +61,7 @@ def call(command: str, location: str | Path = Path.cwd(), callback: Callable[[in
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("-cwd", type=Path, dest="cwd", default=Path.cwd())
     subparsers = parser.add_subparsers(title="Commands", dest="command")
 
     build_parser = subparsers.add_parser("build", help="Build tool.")
@@ -66,6 +69,8 @@ def main():
     build_parser.add_argument("-debug", action="store_true", dest="build_debug")
 
     args = parser.parse_args()
+    global cwd
+    cwd = args.cwd
 
     if args.command == "build":
         build(args)
@@ -92,13 +97,14 @@ def panic(message: str):
     raise Exception("PANIC: " + message)
 
 def yelets_build_include(target: PathLike, dest: PathLike | None = None):
+    include = target
+    if include == "":
+        return
+
     print(f"build: Include target '{target}'." + f"Destination is altered to '{dest}'." if dest else "") 
     project_build_dir = Path(build_dir, project.name)
     # Such project dir shouldn't exist since we should have cleared build directory.
     project_build_dir.mkdir(parents=True, exist_ok=False)
-
-    if include == "":
-        continue
 
     include_parts = (target, dest)
     from_ = include
@@ -128,8 +134,6 @@ def yelets_build_include(target: PathLike, dest: PathLike | None = None):
     else:
         if to_ == ".":
             panic(f"Include destination of '.' is not allowed for files.")
-            error = True
-            break
         shutil.copy2(include_path, Path(project_build_dir, to_))
 
 YELETS_DEFINES = {
@@ -142,7 +146,7 @@ def build(args):
     build_version: int = args.build_version
     build_debug: bool = args.build_debug 
 
-    print(f"Start build process:\n{INDENTATION}Version: {build_version}\n{INDENTATION}Debug:   {build_debug}")
+    print(f"Start build process:\n{INDENTATION}Directory: {cwd}\n{INDENTATION}Version:   {build_version}\n{INDENTATION}Debug:     {build_debug}")
 
     build_dir.mkdir(parents=True, exist_ok=True)
 
@@ -157,34 +161,18 @@ def build(args):
                 project_name = project_context.get("name", "")
                 if not isinstance(project_name, str):
                     print(f"Invalid project name at location '{config_path}'.")
-                    print("Exit with code 1.")
-                    exit(1)
+                    continue
                 elif project_name == "":
                     print(f"Empty project name at location '{config_path}'.")
-                    print("Exit with code 1.")
-                    exit(1)
-                elif not re.match(r"^[a-z_][a-z0-9_]*$", project_name):
-                    print(f"Invalid project name '{project_name}' at location '{config_path}'. Must be in format of snake_case, not starting with digit.")
-                    print("Exit with code 1.")
-                    exit(1)
+                    continue
                 elif project_name is None or project_name == "":
                     print(f"Skip invalid project configuration at '{config_path}'.")
                     continue
 
-                build_info = config.get("build", "info", fallback="").strip("\"")
-                if build_info:
-                    build_info = Path(source, build_info)
-                    if build_info.exists() and build_info.is_dir():
-                        print(f"Build info path '{build_info}' at location '{config_path}' must be a file.")
-                        print("Exit with code 1.")
-                        exit(1)
-                else:
-                    build_info = None
-
                 project = Project(
                     source=source,
                     name=project_name,
-                    build_context=build_context,
+                    context=project_context,
                 )
                 projects[project.name] = project
 
@@ -204,7 +192,7 @@ def build(args):
         print(f"== BUILD: {project.name} ==")
         build_function = project.context.get("build", None)
         if build_function is None or not callable(build_function):
-            print(f"{colorama.Fore.DARK_GREY}No build procedure.{colorama.Fore.RESET}")
+            print(f"{colorama.Fore.WHITE}{colorama.Style.DIM}No build procedure.{colorama.Fore.RESET}{colorama.Style.RESET_ALL}")
             continue
         # @todo Pass some context to custom build functions.
         build_function()

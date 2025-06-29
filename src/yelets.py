@@ -33,10 +33,6 @@ def to_python(code: str) -> str:
 # Returns resulting local namespace.
 def execute(code: str, defines: dict | None = None) -> dict:
     python_code = to_python(code)
-    print(python_code.strip())
-    print()
-    print("-" * 64)
-    print()
     
     globals = {}
     globals.update(BUILTIN)
@@ -46,10 +42,10 @@ def execute(code: str, defines: dict | None = None) -> dict:
     exec(python_code, globals, locals)
     return locals
 
-def execute_file(p: Path) -> dict:
+def execute_file(p: Path, defines: dict | None = None) -> dict:
     with p.open("r") as file:
         code = file.read()
-    return execute(code)
+    return execute(code, defines)
 
 def main():
     parser = argparse.ArgumentParser()
