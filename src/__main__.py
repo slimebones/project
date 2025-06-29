@@ -19,6 +19,7 @@ from typing import Callable, Literal
 from pydantic import BaseModel as struct
 import configparser
 
+
 VERSION = 0
 
 INDENTATION = " " * 4
@@ -31,7 +32,7 @@ GREY = '\033[90m'
 
 # Project is always called in the current working directory. @todo add ability to override cwd via CLI.
 cwd = Path.cwd()
-build_dir = Path(cwd, "build")
+build_dir: Path
 build_version = 0
 build_time = 0
 build_debug = False
@@ -74,22 +75,6 @@ def yelets_call(command: str, callback: Callable[[int, str], None] | None = None
     if code != 0:
         panic(f"Call returned code {code}, location '{location}', command: {command}")
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-cwd", type=Path, dest="cwd", default=Path.cwd())
-    subparsers = parser.add_subparsers(title="Commands", dest="command")
-
-    build_parser = subparsers.add_parser("build", help="Build tool.")
-    build_parser.add_argument("build_version", type=int)
-    build_parser.add_argument("-debug", action="store_true", dest="build_debug")
-
-    args = parser.parse_args()
-    global cwd
-    cwd = args.cwd
-
-    if args.command == "build":
-        build(args)
-
 def yelets_build_info(target: PathLike):
     print(f"Generate build info to '{target}'.")
     target = Path(current_project.source, target)
@@ -112,6 +97,7 @@ def panic(message: str):
 
 def yelets_build_include(target: PathLike, dest: PathLike | None = None):
     target = Path(target)
+    real_target = Path(current_project.source, target)
 
     message = f"Include target '{target}'."
     if dest:
@@ -119,38 +105,26 @@ def yelets_build_include(target: PathLike, dest: PathLike | None = None):
     print(message) 
 
     project_build_dir = Path(build_dir, current_project.name)
-    # Project build might already exist - due to multiple includes or other commands.
     project_build_dir.mkdir(parents=True, exist_ok=True)
 
-    include_parts = (target, dest)
-    from_ = target
-    to_ = target
-    if ".." in str(target):
-        panic(f"The '..' paths found in include '{target}'.")
-    elif len(include_parts) > 2:
-        panic(f"Incorrect include schematics '{target}'.")
-    elif len(include_parts) == 2 and include_parts[1] is not None:
-        from_, to_ = include_parts
-
-    include_path = Path(current_project.source, from_)
-    if not include_path.exists():
-        panic(f"Cannot find include path '{include_path}'.")
-    if include_path.is_dir():
-        if to_ == ".":
+    if not real_target.exists():
+        panic(f"Cannot find include path '{real_target}'.")
+    elif real_target.is_dir():
+        if dest == ".":
             # We cannot just copytree, or an "already-existing" error will be raised. Instead, we will copy everything from the target directory to the build directory.
-            for item in os.listdir(include_path):
-                item_path = Path(include_path, item)
+            for item in os.listdir(real_target):
+                item_path = Path(real_target, item)
                 dest_path = Path(project_build_dir, item)
                 if item_path.is_dir():
                     shutil.copytree(item_path, dest_path)
                 else:
                     shutil.copy2(item_path, dest_path)
         else:
-            shutil.copytree(include_path, Path(project_build_dir, to_))
+            shutil.copytree(real_target, Path(project_build_dir, dest if dest else target))
     else:
-        if to_ == ".":
+        if dest == ".":
             panic(f"Include destination of '.' is not allowed for files.")
-        shutil.copy2(include_path, Path(project_build_dir, to_))
+        shutil.copy2(real_target, Path(project_build_dir, dest if dest else target))
 
 YELETS_DEFINES = {
     "build_info": yelets_build_info,
@@ -165,7 +139,13 @@ def build(args):
     global build_debug
     build_debug = args.build_debug 
 
-    print(f"Start build process:\n{INDENTATION}Directory: {cwd}\n{INDENTATION}Version:   {build_version}\n{INDENTATION}Debug:     {build_debug}")
+    message = """Start build process:
+{ind}Root Directory:        {cwd}
+{ind}Build Directory:       {build_dir}
+{ind}Chosen Version:        {build_version}
+{ind}Debug:                 {build_debug}
+""".format(ind=INDENTATION, cwd=cwd, build_version=build_version, build_debug=build_debug, build_dir=build_dir)
+    print(message)
 
     build_dir.mkdir(parents=True, exist_ok=True)
 
@@ -226,6 +206,25 @@ def build(args):
         else:
             print(f"{colorama.Fore.GREEN}Build for '{project.name}' finished.{colorama.Fore.RESET}")
         print(colorama.Style.RESET_ALL, end="")
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-cwd", type=Path, dest="cwd", default=Path.cwd())
+    subparsers = parser.add_subparsers(title="Commands", dest="command")
+
+    build_parser = subparsers.add_parser("build", help="Build tool.")
+    build_parser.add_argument("build_version", type=int)
+    build_parser.add_argument("-debug", action="store_true", dest="build_debug")
+
+    args = parser.parse_args()
+    global cwd
+    cwd = args.cwd
+    global build_dir
+    build_dir = Path(cwd, "build")
+
+    if args.command == "build":
+        build(args)
+
 
 if __name__ == "__main__":
     main()
