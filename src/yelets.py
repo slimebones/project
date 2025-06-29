@@ -1,7 +1,6 @@
 # Yelets interpreter, prototype Python implementation.
 
 import argparse
-from pprint import pprint
 from pathlib import Path
 import re
 
