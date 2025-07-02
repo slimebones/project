@@ -24,6 +24,11 @@ VERSION = 0
 
 INDENTATION = " " * 4
 
+CODENAME_RULES = """{ind}1. alphanumeric, separated by underscores
+{ind}2. not starting with an underscore
+{ind}3. not starting with a digit
+{ind}4. not ending with an underscore"""
+
 RED = '\033[31m'
 GREEN = '\033[32m'
 RESET = '\033[0m'
@@ -36,6 +41,7 @@ build_dir: Path
 build_version = 0
 build_time = 0
 build_debug = False
+project_codes: list[str] = []
 
 class Project(struct):
     source: Path
@@ -75,6 +81,43 @@ def yelets_call(command: str, callback: Callable[[int, str], None] | None = None
     if code != 0:
         panic(f"Call returned code {code}, location '{location}', command: {command}")
 
+# Build a codesheet, writing to given `target`.
+#
+# Built codesheet includes a programming-language-specific compile-time (or boot-time) constant definitions, and a dictionary-like definition, where the keys are codes, and the values are codenames.
+def yelets_build_codes(target: PathLike):
+    print(f"Generate codes to '{target}'.")
+    target = Path(current_project.source, target)
+    extension = target.suffix.removeprefix(".")
+    content = ""
+    codenames = ""
+    # Codes must be already valid at this point.
+    if extension == "py":
+        content += "OK = 0\n"
+        for code, codename in enumerate(project_codes):
+            code += 1
+            content += f"{codename} = {code}\n"
+            codenames += f"{INDENTATION}{code}: \"{codename}\",\n"
+
+        content += """
+codenames: dict[int, str] = {{
+{codenames}}}""".format(codenames=codenames)
+
+    elif extension == "js":
+        content += "export const OK = 0;\n"
+        for code, codename in enumerate(project_codes):
+            code += 1
+            content += f"export const {codename} = {code};\n"
+            codenames += f"{INDENTATION}{code}: \"{codename}\",\n"
+
+        content += """
+export const codenames = {{
+{codenames}}};""".format(codenames=codenames)
+
+    else:
+        panic(f"Unsupported codes extension '{extension}' at location '{target}'.")
+    with target.open("w+") as f:
+        f.write(content)
+
 def yelets_build_info(target: PathLike):
     print(f"Generate build info to '{target}'.")
     target = Path(current_project.source, target)
@@ -88,7 +131,7 @@ def yelets_build_info(target: PathLike):
         BRACKET_RIGHT = "}"
         content = f"// {auto_message}\nconst BUILD_VERSION = {build_version};\nconst BUILD_TIME = {build_time};\nconst BUILD_DEBUG = {'true' if build_debug else 'false'};\nexport {BRACKET_LEFT} BUILD_VERSION, BUILD_TIME, BUILD_DEBUG {BRACKET_RIGHT};\n"
     else:
-        panic(f"Unsupported build info extension '{extension}' at location '{config_path}'.")
+        panic(f"Unsupported build info extension '{extension}' at location '{target}'.")
     with target.open("w+") as f:
         f.write(content)
 
@@ -131,6 +174,7 @@ YELETS_DEFINES = {
     "call": yelets_call,
     "build_include": yelets_build_include,
     "panic": panic,
+    "build_codes": yelets_build_codes,
 }
 
 def build(args):
@@ -221,6 +265,21 @@ def main():
     cwd = args.cwd
     global build_dir
     build_dir = Path(cwd, "build")
+
+    with Path(cwd, "codes.txt").open("r") as file:
+        lines = file.readlines()
+        for line in lines:
+            line = line.strip()
+            # Codes must be parsed strictly. We want our `codes.txt` file to look clean.
+            # We add even empty lines - codes must be correctly enumerated. Later empty lines will be replaced by empty lines during code-file generation.
+            if line:
+                if line in ["OK", "CODENAMES"]:
+                    panic(f"Cannot use reserved codename '{line}'.")
+                if not re.match(r"^(?![0-9])(?<!_)([A-Z0-9]+(?:_[A-Z0-9]+)*)[^_]$", line):
+                    panic(f"Invalid codename: '{line}'. Codename rules:\n{CODENAME_RULES.format(ind=INDENTATION)}")
+
+            project_codes.append(line.strip())
+    print(f"Collected {len(project_codes)} project codes.", end="\n\n")
 
     if args.command == "build":
         build(args)
