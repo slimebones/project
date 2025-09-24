@@ -28,6 +28,6 @@ def test_create():
     assert build_dir.exists()
     assert Path(build_dir, "requirements.txt").exists()
     assert Path(build_dir, "build.py").exists()
-    assert Path(build_dir, "code.py").exists()
+    assert Path(build_dir, "codes.py").exists()
     assert Path(build_dir, "module_a").exists()
     assert Path(build_dir, "module_a/__init__.py").exists()

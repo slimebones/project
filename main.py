@@ -83,7 +83,7 @@ def yelets_call(command: str, callback: Callable[[int, str], None] | None = None
 # Build a codesheet, writing to given `target`.
 #
 # Built codesheet includes a programming-language-specific compile-time (or boot-time) constant definitions, and a dictionary-like definition, where the keys are codes, and the values are codenames.
-def yelets_buildCodes(target: PathLike):
+def yelets_buildCode(target: PathLike):
     response(f"Generate codes to '{target}'.")
     target = Path(current_project.source, target)
     extension = target.suffix.removeprefix(".")
@@ -219,7 +219,7 @@ def build(version: str, debug: bool):
                     "buildInfo": yelets_buildInfo,
                     "call": yelets_call,
                     "buildInclude": yelets_buildInclude,
-                    "buildCodes": yelets_buildCodes,
+                    "buildCode": yelets_buildCode,
                     "buildIncludePython": yelets_buildIncludePython,
                 }
                 project_context = yelets.execute_file(config_path, yelets_defines)

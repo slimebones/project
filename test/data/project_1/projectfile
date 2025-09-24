@@ -2,7 +2,7 @@ name = "project_1"
 
 build = fn () {
     buildInfo("build.py")
-    buildCodes("code.py")
+    buildCode("codes.py")
 
     buildIncludePython()
 }
