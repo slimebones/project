@@ -27,5 +27,7 @@ def test_create():
     build_dir = Path("test/data/project_1/.build/project_1")
     assert build_dir.exists()
     assert Path(build_dir, "requirements.txt").exists()
+    assert Path(build_dir, "build.py").exists()
+    assert Path(build_dir, "code.py").exists()
     assert Path(build_dir, "module_a").exists()
     assert Path(build_dir, "module_a/__init__.py").exists()

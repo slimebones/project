@@ -91,7 +91,7 @@ def yelets_buildCodes(target: PathLike):
     codenames = ""
     # Codes must be already valid at this point.
     if extension == "py":
-        content += "OK = 0\n"
+        content += "ok = 0\n"
         for code, codename in enumerate(project_codes):
             code += 1
             content += f"{codename} = {code}\n"
@@ -122,8 +122,9 @@ def yelets_buildIncludePython():
     for root, dirs, files in os.walk(cwd):
         if Path(root) == cwd:
             for filename in files:
-                if filename == "requirements.txt":
-                    yelets_buildInclude("requirements.txt")
+                # include requirements and all python filenames
+                if filename in "requirements.txt" or filename.endswith(".py"):
+                    yelets_buildInclude(filename)
         # search only top-level modules to include
         elif Path(root).parent == cwd:
             for filename in files:
@@ -191,7 +192,7 @@ def build(version: str, debug: bool):
     if build_version_major < 0 or build_version_minor < 0 or build_version_patch < 0:
         raise Exception("Wrong version setup.")
     global build_version
-    build_version = f"v{build_version_major}.{build_version_minor}.{build_version_patch}"
+    build_version = f"{build_version_major}.{build_version_minor}.{build_version_patch}"
 
     global build_debug
     build_debug = debug

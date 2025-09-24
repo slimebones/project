@@ -109,4 +109,4 @@ Updates a single dependency, if called in their's directory. This logic is simil
 
 
 ## `project test`
-@todo
+Runs testing suite for the current project and all sub-projects. The testing protocol is defined by `projectfile` function `test`. Alternatively, to test only the current project, you can call `project execute test`, but you won't get visualization of testing pass.
