@@ -1,5 +1,0 @@
-`project code build`
-`project code sync`
-`project code add`
-Also: attach `codenames = dict[int, str]` information about codes to the same `codes.{extension}` output file.
-
