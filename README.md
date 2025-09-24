@@ -37,9 +37,9 @@ Every executable function can access current args by calling the `args()` functi
         "my_directory_2",
     ],
     keyword: {
-        "-force": null,
-        "-organizer": "advanced",
-        "-limit": 100,
+        force: null,
+        organizer: "advanced",
+        limit: 100,
     },
 }
 ```
@@ -74,6 +74,8 @@ deploy = fn () {
 
     ssh_host.copyTo("/home/alex/.app/my_project/deploy.tar.xz", ".deploy/deploy.tar.xz")
     ssh_host.execute("tar -xf /home/alex/.app/my_project/deploy.tar.xz -C /home/alex/.app/my_project/")
+    ssh_host.execute("python -m venv /home/alex/.app/my_project/.venv")
+    ssh_host.execute("/home/alex/.app/my_project/.venv/bin/python -m pip install -r /home/alex/.app/my_project/requirements.txt")
 
     ssh_host.execute("sudo systemctl start my_project")
 }
@@ -106,3 +108,5 @@ The installed or uploaded dependencies receive a generated file called `moduleha
 Updates a single dependency, if called in their's directory. This logic is similar that is called for each project's dependency by `project dependency install`. Flag `-force` ensures that full update is made in case of hash-unconsistencies.
 
 
+## `project test`
+@todo
