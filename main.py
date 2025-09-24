@@ -102,7 +102,7 @@ codenames: dict[int, str] = {{
 {codenames}}}""".format(codenames=codenames)
 
     elif extension in ["js", "ts"]:
-        content += "export const OK = 0;\n"
+        content += "export const ok = 0;\n"
         for code, codename in enumerate(project_codes):
             code += 1
             content += f"export const {codename} = {code};\n"
