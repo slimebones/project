@@ -118,6 +118,19 @@ export const codenames = {{
         f.write(content)
 
 
+def yelets_buildIncludePython():
+    for root, dirs, files in os.walk(cwd):
+        if Path(root) == cwd:
+            for filename in files:
+                if filename == "requirements.txt":
+                    yelets_buildInclude("requirements.txt")
+        # search only top-level modules to include
+        elif Path(root).parent == cwd:
+            for filename in files:
+                if filename == "__init__.py":
+                    yelets_buildInclude(Path(root).name)
+
+
 def yelets_buildInfo(target: PathLike):
     response(f"Generate build info to '{target}'.")
     target = Path(current_project.source, target)
@@ -136,7 +149,7 @@ def yelets_buildInfo(target: PathLike):
         f.write(content)
 
 
-def yelets_buildInclude(target: PathLike, dest: PathLike | None = None):
+def yelets_buildInclude(target: Path | str, dest: Path | str | None = None):
     target = Path(target)
     real_target = Path(current_project.source, target)
 
@@ -197,7 +210,7 @@ def build(version: str, debug: bool):
     for source, subdirs, subfiles in cwd.walk():
         for file in subfiles:
             # @todo We should be able to search for `project`, `project.y`, `project.jai`, etc. Project file implementation does not matter as long as we have a driver for it. What matters, is complying to our standards - drivers should execute file in a way, that left us with a namespace map, with converted to python objects, including functions.
-            if file == "project":
+            if file == "projectfile":
                 config_path = Path(source, file)
                 # We must have a name, or we consider project.cfg not matching our ideology.
 
@@ -206,6 +219,7 @@ def build(version: str, debug: bool):
                     "call": yelets_call,
                     "buildInclude": yelets_buildInclude,
                     "buildCodes": yelets_buildCodes,
+                    "buildIncludePython": yelets_buildIncludePython,
                 }
                 project_context = yelets.execute_file(config_path, yelets_defines)
                 project_name = project_context.get("name", "")
@@ -259,6 +273,9 @@ def build(version: str, debug: bool):
 
 
 def main():
+    global cwd
+    global build_dir
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-cwd", type=Path, dest="cwd", default=Path.cwd())
 
@@ -270,10 +287,8 @@ def main():
     build_parser.add_argument("-debug", action="store_true", dest="debug")
 
     args = parser.parse_args()
-    global cwd
     cwd = args.cwd
-    global build_dir
-    build_dir = Path(cwd, "build")
+    build_dir = Path(cwd, ".build")
 
     code_path = Path(cwd, "code.txt")
     if code_path.exists():
