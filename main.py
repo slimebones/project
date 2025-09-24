@@ -4,60 +4,51 @@ import argparse
 from typing import Any
 from os import PathLike
 import colorama
-import datetime
-from src import yelets
+import location
+import yelets
 import os
-import multiprocessing
 from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
-import threading
 import time
 from typing import Callable, Literal
-from pydantic import BaseModel as struct
-import configparser
+from pydantic import BaseModel
 
-VERSION = "0.0.0"
 
-INDENTATION = " " * 4
-
-CODENAME_RULES = """{ind}1. alphanumeric, separated by underscores
-{ind}2. not starting with an underscore
-{ind}3. not starting with a digit
-{ind}4. not ending with an underscore"""
-
-RED = '\033[31m'
-GREEN = '\033[32m'
-RESET = '\033[0m'
-GREY = '\033[90m'
-# ]]]] nvim fix
-
-# Project is always called in the current working directory. @todo add ability to override cwd via CLI.
-cwd = Path.cwd()
-build_dir: Path
-
-build_version = ""
-build_version_major = 0
-build_version_minor = 0
-build_version_patch = 0
-
-build_time = 0
-build_debug = False
-project_codes: list[str] = []
-
-class Project(struct):
+class Project(BaseModel):
     source: Path
     name: str
     context: dict[str, Any]
 
+
+indentation = " " * 4
+codename_rules = """{ind}1. alphanumeric
+{ind}2. lower case
+{ind}3. separated by underscores
+{ind}4. not starting with an underscore
+{ind}5. not ending with an underscore
+{ind}6. not starting with a digit"""
+
+red = '\033[31m'
+green = '\033[32m'
+reset = '\033[0m'
+grey = '\033[90m'
+# ]]]] nvim fix
+
+# Project is always called in the current working directory. @todo add ability to override cwd via CLI.
+cwd = location.cwd()
+build_dir: Path
+project_codes: list[str] = []
+
 current_project: Project
 projects: dict[str, Project] = {}
 
+
+# @legacy this call is custom, when it's available, recommend to use Yelet's `std.call()`
 def yelets_call(command: str, callback: Callable[[int, str], None] | None = None):
-    # Always call relatively to current project.
-    location = current_project.source
+    # Always call relatively to the current project.
+    loc = current_project.source
 
     # Use nushell command.
     if "\"" in command:
@@ -69,7 +60,7 @@ def yelets_call(command: str, callback: Callable[[int, str], None] | None = None
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=location,
+        cwd=loc,
         bufsize=1,
         universal_newlines=True,
     )
@@ -83,12 +74,13 @@ def yelets_call(command: str, callback: Callable[[int, str], None] | None = None
                 callback(2, line)
     code = process.wait()
     if code != 0:
-        panic(f"Call returned code {code}, location '{location}', command: {command}")
+        raise Exception(f"Call returned code {code}, location '{loc}', command: {command}")
+
 
 # Build a codesheet, writing to given `target`.
 #
 # Built codesheet includes a programming-language-specific compile-time (or boot-time) constant definitions, and a dictionary-like definition, where the keys are codes, and the values are codenames.
-def yelets_build_codes(target: PathLike):
+def yelets_buildCodes(target: PathLike):
     print(f"Generate codes to '{target}'.")
     target = Path(current_project.source, target)
     extension = target.suffix.removeprefix(".")
@@ -100,7 +92,7 @@ def yelets_build_codes(target: PathLike):
         for code, codename in enumerate(project_codes):
             code += 1
             content += f"{codename} = {code}\n"
-            codenames += f"{INDENTATION}{code}: \"{codename}\",\n"
+            codenames += f"{indentation}{code}: \"{codename}\",\n"
 
         content += """
 codenames: dict[int, str] = {{
@@ -111,18 +103,19 @@ codenames: dict[int, str] = {{
         for code, codename in enumerate(project_codes):
             code += 1
             content += f"export const {codename} = {code};\n"
-            codenames += f"{INDENTATION}{code}: \"{codename}\",\n"
+            codenames += f"{indentation}{code}: \"{codename}\",\n"
 
         content += """
 export const codenames = {{
 {codenames}}};""".format(codenames=codenames)
 
     else:
-        panic(f"Unsupported codes extension '{extension}' at location '{target}'.")
+        raise Exception(f"Unsupported codes extension '{extension}' at location '{target}'.")
     with target.open("w+") as f:
         f.write(content)
 
-def yelets_build_info(target: PathLike):
+
+def yelets_buildInfo(target: PathLike):
     print(f"Generate build info to '{target}'.")
     target = Path(current_project.source, target)
     extension = target.suffix.removeprefix(".")
@@ -135,27 +128,25 @@ def yelets_build_info(target: PathLike):
         BRACKET_RIGHT = "}"
         content = f"// {auto_message}\nconst BUILD_VERSION = \"{build_version}\";\nconst BUILD_TIME = {build_time};\nconst BUILD_DEBUG = {'true' if build_debug else 'false'};\nexport {BRACKET_LEFT} BUILD_VERSION, BUILD_TIME, BUILD_DEBUG {BRACKET_RIGHT};\n"
     else:
-        panic(f"Unsupported build info extension '{extension}' at location '{target}'.")
+        raise Exception(f"Unsupported build info extension '{extension}' at location '{target}'.")
     with target.open("w+") as f:
         f.write(content)
 
-def panic(message: str):
-    raise Exception("PANIC: " + message)
 
-def yelets_build_include(target: PathLike, dest: PathLike | None = None):
+def yelets_buildInclude(target: PathLike, dest: PathLike | None = None):
     target = Path(target)
     real_target = Path(current_project.source, target)
 
     message = f"Include target '{target}'."
     if dest:
         message += f" Destination is altered to '{dest}'."
-    print(message) 
+    print(message)
 
     project_build_dir = Path(build_dir, current_project.name)
     project_build_dir.mkdir(parents=True, exist_ok=True)
 
     if not real_target.exists():
-        panic(f"Cannot find include path '{real_target}'.")
+        raise Exception(f"Cannot find include path '{real_target}'.")
     elif real_target.is_dir():
         if dest == ".":
             # We cannot just copytree, or an "already-existing" error will be raised. Instead, we will copy everything from the target directory to the build directory.
@@ -170,16 +161,8 @@ def yelets_build_include(target: PathLike, dest: PathLike | None = None):
             shutil.copytree(real_target, Path(project_build_dir, dest if dest else target))
     else:
         if dest == ".":
-            panic(f"Include destination of '.' is not allowed for files.")
+            raise Exception(f"Include destination of '.' is not allowed for files.")
         shutil.copy2(real_target, Path(project_build_dir, dest if dest else target))
-
-YELETS_DEFINES = {
-    "build_info": yelets_build_info,
-    "call": yelets_call,
-    "build_include": yelets_build_include,
-    "panic": panic,
-    "build_codes": yelets_build_codes,
-}
 
 def build(args):
     global build_version_major
@@ -190,19 +173,19 @@ def build(args):
     build_version_minor = int(minor)
     build_version_patch = int(patch)
     if build_version_major < 0 or build_version_minor < 0 or build_version_patch < 0:
-        panic("Wrong version setup.")
+        raise Exception("Wrong version setup.")
     global build_version
     build_version = f"v{build_version_major}.{build_version_minor}.{build_version_patch}"
 
     global build_debug
-    build_debug = args.build_debug 
+    build_debug = args.build_debug
 
     message = """Start build process:
 {ind}Root Directory:        {cwd}
 {ind}Build Directory:       {build_dir}
 {ind}Chosen Version:        {build_version}
 {ind}Debug:                 {build_debug}
-""".format(ind=INDENTATION, cwd=cwd, build_version=build_version, build_debug=build_debug, build_dir=build_dir)
+""".format(ind=indentation, cwd=cwd, build_version=build_version, build_debug=build_debug, build_dir=build_dir)
     print(message)
 
     build_dir.mkdir(parents=True, exist_ok=True)
@@ -210,11 +193,18 @@ def build(args):
     # Collect projects.
     for source, subdirs, subfiles in cwd.walk():
         for file in subfiles:
-            # @todo We should be able to search for `project`, `project.y`, `project.jai`, etc. Project file implementation does not matter as long as we have driver for it. What matters, is complying to our standards - drivers should execute file in a way, that left us with a namespace map, with converted to python objects, including functions.
+            # @todo We should be able to search for `project`, `project.y`, `project.jai`, etc. Project file implementation does not matter as long as we have a driver for it. What matters, is complying to our standards - drivers should execute file in a way, that left us with a namespace map, with converted to python objects, including functions.
             if file == "project":
                 config_path = Path(source, file)
                 # We must have a name, or we consider project.cfg not matching our ideology.
-                project_context = yelets.execute_file(config_path, YELETS_DEFINES)
+
+                yelets_defines = {
+                    "buildInfo": yelets_buildInfo,
+                    "call": yelets_call,
+                    "buildInclude": yelets_buildInclude,
+                    "buildCodes": yelets_buildCodes,
+                }
+                project_context = yelets.execute_file(config_path, yelets_defines)
                 project_name = project_context.get("name", "")
                 if not isinstance(project_name, str):
                     print(f"Invalid project name at location '{config_path}'.")
@@ -233,8 +223,7 @@ def build(args):
                 )
                 projects[project.name] = project
 
-    print(f"Collected {len(projects)} projects.")
-    print()
+    print(f"Collected {len(projects)} projects.", end="\n\n")
 
     # We remove the whole dir "build" - noone else should occupy it if we're about to use project utilities at full capacity.
     # Do it at this stage to remove after the projects are collected.
@@ -265,13 +254,16 @@ def build(args):
             print(f"{colorama.Fore.GREEN}Build for '{project.name}' finished.{colorama.Fore.RESET}")
         print(colorama.Style.RESET_ALL, end="")
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-cwd", type=Path, dest="cwd", default=Path.cwd())
+
     subparsers = parser.add_subparsers(title="Commands", dest="command")
 
+    # `project build`
     build_parser = subparsers.add_parser("build", help="Build tool.")
-    build_parser.add_argument("build_version", type=str)
+    build_parser.add_argument("version", type=str)
     build_parser.add_argument("-debug", action="store_true", dest="build_debug")
 
     args = parser.parse_args()
@@ -283,23 +275,26 @@ def main():
     with Path(cwd, "codes.txt").open("r") as file:
         lines = file.readlines()
         for line in lines:
-            line = line.strip()
+            line = line.strip().lower()
             # Codes must be parsed strictly. We want our `codes.txt` file to look clean.
             # We add even empty lines - codes must be correctly enumerated. Later empty lines will be replaced by empty lines during code-file generation.
             if line:
-                if line in ["OK", "CODENAMES"]:
-                    panic(f"Cannot use reserved codename '{line}'.")
-                if not re.match(r"^(?![0-9])(?<!_)([A-Z0-9]+(?:_[A-Z0-9]+)*)[^_]$", line):
-                    panic(f"Invalid codename: '{line}'. Codename rules:\n{CODENAME_RULES.format(ind=INDENTATION)}")
+                if line in ["ok", "codenames"]:
+                    raise Exception(f"Cannot use reserved codename '{line}'.")
+                if not re.match(r"^(?![0-9])(?<!_)([a-z0-9]+(?:_[a-z0-9]+)*)[^_]$", line):
+                    raise Exception(f"Invalid codename: '{line}'. Codename rules:\n{codename_rules.format(ind=indentation)}")
                 if line in project_codes:
-                    panic(f"Duplicate definition of a codename '{line}'.")
+                    raise Exception(f"Duplicate definition of a codename '{line}'.")
 
             project_codes.append(line)
 
     print(f"Collected {len(project_codes)} project codes.", end="\n\n")
 
-    if args.command == "build":
-        build(args)
+    match args.command:
+        case "build":
+            build(args)
+        case _:
+            raise Exception(f"unrecognized command '{args.command}'")
 
 
 if __name__ == "__main__":

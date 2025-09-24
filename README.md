@@ -58,7 +58,6 @@ Typical deploy function, that deploys built python project to remote server's `a
 ssh = @import("ssh")
 file = @import("file")
 tar = @import("tar")
-time = @import("time")
 
 name = "my_project"
 
@@ -70,8 +69,8 @@ deploy = fn () {
 
     ssh_host = ssh.createHost("user", "192.168.0.10")
     ssh_host.execute("sudo systemctl stop my_project")
+    ssh_host.execute(f"rm -rf /home/alex/.app/my_project")
     ssh_host.execute(f"mkdir /home/alex/.app/my_project")
-    ssh_host.execute(f"cp /home/alex/.app/my_project /home/alex/.backup/my_project_{time.stamp()}")
 
     ssh_host.copyTo("/home/alex/.app/my_project/deploy.tar.xz", ".deploy/deploy.tar.xz")
     ssh_host.execute("tar -xf /home/alex/.app/my_project/deploy.tar.xz -C /home/alex/.app/my_project/")
