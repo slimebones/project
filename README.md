@@ -3,10 +3,10 @@ Project management tool. Should contain all the features we need to deploy relia
 
 This software manages project, which are directories with a file named `projectfile` defined, as well as project's modules, defined in directories with a file named `modulefile`. These files contain Yelets Scripting Language code aimed on providing customizable project development services, such as building, code generation, dependency management.
 
-## `project create`
+## `project init`
 Creates a new project using template:
 ```
-project create {project_name} {template:optional}
+project make {project_name} {template:optional}
 ```
 
 Will create a sub-directory in current working directory named as project name says. Inside, the files will be generated according to a predefined template. Templates are managed by united engine and organized under command `project template ...`, see below.
@@ -84,15 +84,15 @@ deploy = fn () {
 Calling `project execute deploy` won't have the necessary effect - the required arguments and setup managed by the project software won't take place, which most probably will result in errors.
 
 
-## `project dependency add {dependency_name} {version: optional, defaults "latest"} {output_directory: optional, default to the original dependency name}`
+## `project module add {dependency_name} {version: optional, defaults "latest"} {output_directory: optional, default to the original dependency name}`
 Adds a dependency to a project.
 
 
-## `project dependency install`
+## `project module install`
 Installs all project-specified dependencies. Every dependency is a directory, containing correct `modulefile`.
 
 
-## `project dependency upload {dependency_directory}`
+## `project module upload {module_directory}`
 Uploads a dependency to the server. Dependency version must be unique for a chosen domain and module name, and must not be lower than the latest version of this dependency name for the given domain uploaded.
 
 Module file of a dependency may look as follows (`domain`, `name` and `version` must be defined):
@@ -110,3 +110,19 @@ Updates a single dependency, if called in their's directory. This logic is simil
 
 ## `project test`
 Runs testing suite for the current project and all sub-projects. The testing protocol is defined by `projectfile` function `test`. Alternatively, to test only the current project, you can call `project execute test`, but you won't get visualization of testing pass.
+
+
+## `project status`
+Displays information about the current project.
+
+
+## `project commit`
+Commits changes to version control.
+
+
+## `project push`
+Pushes changes to version control.
+
+
+## `project update`
+Update changes from version control.

@@ -1,6 +1,8 @@
 # Project management tool.
 
 import argparse
+import asyncio
+import commit as commitmod
 import sys
 from typing import Any
 from os import PathLike
@@ -45,8 +47,53 @@ project_codes: list[str] = []
 current_project: Project
 projects: dict[str, Project] = {}
 
-def response(message: str, *, end: str = "\n", sep: str = " "):
-    print(message, file=sys.stderr, end=end, sep=sep)
+
+async def call(command) -> tuple[str, str, int]:
+    process = await asyncio.create_subprocess_shell(
+        command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    stdout, stderr = await process.communicate()
+
+    # Decode the output from bytes to string
+    stdout = stdout.decode('utf-8') if stdout else ''
+    stderr = stderr.decode('utf-8') if stderr else ''
+
+    return (stdout, stderr, process.returncode or 0)
+
+
+async def status():
+    stdout, stderr, e = await call("git status")
+    if e > 0:
+        response(f"project status finished with code #{e}.")
+    response(stdout, end="")
+    response(stderr, end="")
+
+
+async def commit():
+    commitmod.commit(response)
+
+
+async def update():
+    stdout, stderr, e = await call("git update")
+    if e > 0:
+        response(f"project update finished with code #{e}.")
+    response(stdout, end="")
+    response(stderr, end="")
+
+
+async def push():
+    stdout, stderr, e = await call("git push --tags && git push")
+    if e > 0:
+        response(f"project push finished with code #{e}.")
+    response(stdout, end="")
+    response(stderr, end="")
+
+
+def response(*messages, end: str = "\n", sep: str = " "):
+    print(*messages, file=sys.stderr, end=end, sep=sep)
 
 # @legacy this call is custom, when it's available, recommend to use Yelet's `std.call()`
 def yelets_call(command: str, callback: Callable[[int, str], None] | None = None):
@@ -150,6 +197,7 @@ def yelets_buildInfo(target: PathLike):
         f.write(content)
 
 
+# @todo we also need to use glob as target, like `buildInclude("*.html")`, but in such a case we should disallow `dest`
 def yelets_buildInclude(target: Path | str, dest: Path | str | None = None):
     target = Path(target)
     real_target = Path(current_project.source, target)
@@ -273,7 +321,7 @@ def build(version: str, debug: bool):
         response(colorama.Style.RESET_ALL, end="")
 
 
-def main():
+async def main():
     global cwd
     global build_dir
 
@@ -283,9 +331,21 @@ def main():
     subparsers = parser.add_subparsers(title="Commands", dest="command")
 
     # `project build`
-    build_parser = subparsers.add_parser("build", help="Build tool.")
+    build_parser = subparsers.add_parser("build", help="Build.")
     build_parser.add_argument("version", type=str)
     build_parser.add_argument("-debug", action="store_true", dest="debug")
+
+    # `project status`
+    build_parser = subparsers.add_parser("status", help="Show status.")
+
+    # `project commit`
+    build_parser = subparsers.add_parser("commit", help="Commit changes.")
+
+    # `project push`
+    build_parser = subparsers.add_parser("push", help="Push changes.")
+
+    # `project update`
+    build_parser = subparsers.add_parser("update", help="Update from version control.")
 
     args = parser.parse_args()
     cwd = args.cwd
@@ -313,9 +373,17 @@ def main():
     match args.command:
         case "build":
             build(args.version, args.debug)
+        case "status":
+            await status()
+        case "commit":
+            await commit()
+        case "update":
+            await update()
+        case "push":
+            await push()
         case _:
             raise Exception(f"unrecognized command '{args.command}'")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
