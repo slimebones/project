@@ -25,7 +25,6 @@ def commit(response_function: Callable):
     # Note that only cwd-child files are inspected, and we don't inspect all git root -
     # this is logical, since we commit only the cwd's files.
     grep, e = call("git grep @nocommit")  # @ignore
-    print(grep)
     # `git grep` returns error if search was unsuccessful, so we treat error positively.
     if e == 0:
         grep_lines = grep.splitlines()
