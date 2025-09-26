@@ -70,9 +70,15 @@ async def update():
 
 
 async def push():
-    stdout, stderr, e = call("git push --tags && git push")
+    stdout, stderr, e = call("git push")
     if e > 0:
         response(f"project push finished with code #{e}.")
+    response(stdout, end="")
+    response(stderr, end="")
+
+    stdout, stderr, e = call("git push --tags")
+    if e > 0:
+        response(f"project push tags finished with code #{e}.")
     response(stdout, end="")
     response(stderr, end="")
 
