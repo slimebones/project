@@ -13,7 +13,7 @@ ansi_reset = "\033[0m"
 def merge_consecutive_spaces(text):
     return re.sub(r"[ \t]+", " ", text)
 
-def call(command: str) -> tuple[str, int]:
+def decisive_call(command: str) -> tuple[str, int]:
     process = subprocess.run(command, shell=True, text=True, capture_output=True)
     if process.returncode == 0:
         return process.stdout, 0
@@ -24,7 +24,7 @@ def commit(response_function: Callable):
     # Check if any of non-gitignored files contain unescaped '@nocommit'. @ignore
     # Note that only cwd-child files are inspected, and we don't inspect all git root -
     # this is logical, since we commit only the cwd's files.
-    grep, e = call("git grep @nocommit")  # @ignore
+    grep, e = decisive_call("git grep @nocommit")  # @ignore
     # `git grep` returns error if search was unsuccessful, so we treat error positively.
     if e == 0:
         grep_lines = grep.splitlines()

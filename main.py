@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+from call import call
 import commit as commitmod
 import sys
 from typing import Any
@@ -48,24 +49,8 @@ current_project: Project
 projects: dict[str, Project] = {}
 
 
-async def call(command) -> tuple[str, str, int]:
-    process = await asyncio.create_subprocess_shell(
-        command,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-
-    stdout, stderr = await process.communicate()
-
-    # Decode the output from bytes to string
-    stdout = stdout.decode('utf-8') if stdout else ''
-    stderr = stderr.decode('utf-8') if stderr else ''
-
-    return (stdout, stderr, process.returncode or 0)
-
-
 async def status():
-    stdout, stderr, e = await call("git status")
+    stdout, stderr, e = call("git status")
     if e > 0:
         response(f"project status finished with code #{e}.")
     response(stdout, end="")
@@ -77,7 +62,7 @@ async def commit():
 
 
 async def update():
-    stdout, stderr, e = await call("git update")
+    stdout, stderr, e = call("git pull")
     if e > 0:
         response(f"project update finished with code #{e}.")
     response(stdout, end="")
@@ -85,7 +70,7 @@ async def update():
 
 
 async def push():
-    stdout, stderr, e = await call("git push --tags && git push")
+    stdout, stderr, e = call("git push --tags && git push")
     if e > 0:
         response(f"project push finished with code #{e}.")
     response(stdout, end="")
