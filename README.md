@@ -126,3 +126,8 @@ Pushes changes to version control.
 
 ## `project update`
 Update changes from version control.
+
+
+## `project release`
+
+Release making, effectively calling projectfile's `release` function
