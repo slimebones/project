@@ -6,7 +6,7 @@ This software manages project, which are directories with a file named `projectf
 ## `project init`
 Creates a new project using template:
 ```
-project make {project_name} {template:optional}
+project make {project_id} {template:optional}
 ```
 
 Will create a sub-directory in current working directory named as project name says. Inside, the files will be generated according to a predefined template. Templates are managed by united engine and organized under command `project template ...`, see below.
@@ -131,3 +131,7 @@ Update changes from version control.
 ## `project release`
 
 Release making, effectively calling projectfile's `release` function
+
+## `project template`
+
+Makes use of a templates inside a project.
