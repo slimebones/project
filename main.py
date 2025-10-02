@@ -359,7 +359,7 @@ async def main():
                         raise Exception(f"Duplicate definition of a codename '{line}'.")
 
                 project_codes.append(line)
-        response(f"Collected {len(project_codes)} project codes.", end="\n\n")
+        # response(f"Collected {len(project_codes)} project codes.", end="\n\n")
 
     match args.command:
         case "build":
