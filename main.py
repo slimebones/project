@@ -181,7 +181,7 @@ def yelets_buildInfo(target: PathLike):
     elif extension in ["js", "ts"]:
         BRACKET_LEFT = "{"
         BRACKET_RIGHT = "}"
-        content = f"// {auto_message}\nconst project_id = \"{current_project.id}\";\nconst version = \"{build_version}\";\nconst timestamp = {build_time};\nconst debug = {'true' if build_debug else 'false'};\nexport {BRACKET_LEFT} version, timestamp, debug {BRACKET_RIGHT};\n"
+        content = f"// {auto_message}\nconst project_id = \"{current_project.id}\";\nconst version = \"{build_version}\";\nconst timestamp = {build_time};\nconst debug = {'true' if build_debug else 'false'};\nexport {BRACKET_LEFT} project_id, version, timestamp, debug {BRACKET_RIGHT};\n"
     else:
         raise Exception(f"Unsupported build info extension '{extension}' at location '{target}'.")
     with target.open("w+") as f:
