@@ -52,7 +52,7 @@ projects: dict[str, Project] = {}
 async def status():
     stdout, stderr, e = call("git status")
     if e > 0:
-        response(f"project status finished with code #{e}.")
+        response(f"project status finished with code #{e}")
     response(stdout, end="")
     response(stderr, end="")
 
@@ -64,7 +64,7 @@ async def commit():
 async def update():
     stdout, stderr, e = call("git pull")
     if e > 0:
-        response(f"project update finished with code #{e}.")
+        response(f"project update finished with code #{e}")
     response(stdout, end="")
     response(stderr, end="")
 
@@ -72,13 +72,13 @@ async def update():
 async def push():
     stdout, stderr, e = call("git push")
     if e > 0:
-        response(f"project push finished with code #{e}.")
+        response(f"project push finished with code #{e}")
     response(stdout, end="")
     response(stderr, end="")
 
     stdout, stderr, e = call("git push --tags")
     if e > 0:
-        response(f"project push tags finished with code #{e}.")
+        response(f"project push tags finished with code #{e}")
     response(stdout, end="")
     response(stderr, end="")
 
