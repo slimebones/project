@@ -1,4 +1,4 @@
-name = "project_1"
+id = "project_1"
 
 build = fn () {
     buildInfo("build.py")

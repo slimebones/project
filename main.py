@@ -282,7 +282,7 @@ def build(version: str, debug: bool):
 
     response(f"Collected {len(projects)} projects.", end="\n\n")
 
-    # We remove the whole dir "build" - noone else should occupy it if we're about to use project utilities at full capacity.
+    # We remove the whole dir ".build" - noone else should occupy it if we're about to use project utilities at full capacity.
     # Do it at this stage to remove after the projects are collected.
     shutil.rmtree(build_dir)
     global build_time
