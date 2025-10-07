@@ -49,7 +49,6 @@ def to_python(code: str) -> str:
 # Returns resulting local namespace.
 def execute(code: str, defines: dict | None = None) -> dict:
     python_code = to_python(code)
-    print(python_code)
 
     globals = {}
     globals.update(BUILTIN)

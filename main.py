@@ -87,17 +87,23 @@ async def cmd_template():
 
 class YeletsFunctionArgs:
     def __init__(self, positional, keyword):
-        self.positional = positional
-        self.keyword = keyword
+        self._positional = positional
+        for k in keyword.keys():
+            if k.startswith("_"):
+                raise Exception(f"Keywords are prohibited to start with an underscore.")
+        self._keyword = keyword
 
     def __getitem__(self, index: int):
         try:
-            return self.positional[index]
+            return self._positional[index]
         except IndexError:
             return None
 
     def __getattribute__(self, key: str) -> Any:
-        return self.keyword.get(key, None)
+        if key.startswith("_"):
+            return super().__getattribute__(key)
+        else:
+            return self.keyword.get(key, None)
 
 async def execute_project_function(projectfile: Path, function_name: str, args: YeletsFunctionArgs):
     project = Project(
@@ -109,11 +115,10 @@ async def execute_project_function(projectfile: Path, function_name: str, args: 
         "grand": YeletsGrandContext(
             response=response,
             project=project,
-            cwd=cwd,
+            cwd=projectfile.parent,
             indentation=indentation,
             target_version=target_version,
             target_debug=target_debug,
-            build_dir=build_dir,
         ),
     }
     project_context = yelets.execute_file(projectfile, yelets_defines)
@@ -158,14 +163,17 @@ async def cmd_execute(function_name: str, args: YeletsFunctionArgs):
 
 
 async def cmd_execute_all(function_name: str, args: YeletsFunctionArgs):
+    i = 0
     # Collect projects.
     for source, subdirs, subfiles in cwd.walk():
         for file in subfiles:
             # @todo We should be able to search for `project`, `project.y`, `project.jai`, etc. Project file implementation does not matter as long as we have a driver for it. What matters, is complying to our standards - drivers should execute file in a way, that left us with a namespace map, with converted to python objects, including functions.
             if file == "projectfile":
-                config_path = Path(source, file)
-                await execute_project_function(config_path, function_name, args)
-                response()
+                projectfile = Path(source, file)
+                if i > 0:
+                    response()
+                await execute_project_function(projectfile, function_name, args)
+                i += 1
 
 
 async def main():
@@ -186,7 +194,7 @@ async def main():
     subparser = subparsers.add_parser("execute-all", help="Executes a function from the cwd's projectfile and all the subprojects.")
     subparser.add_argument("function_name", type=str)
     subparser.add_argument("positional", nargs="*", help="Positional arguments to a project's function.")
-    subparser.add_argument("--keyword", action="append", nargs=2, metavar=("KEY", "VALUE"), help="Keyword arguments to a project's function.")
+    subparser.add_argument("-kw", action="append", nargs=2, metavar=("KEY", "VALUE"), help="Keyword arguments to a project's function.")
 
     # `project status`
     subparsers.add_parser("status", help="Show status.")
@@ -211,12 +219,13 @@ async def main():
     target_debug = args.debug
 
 
+    response()
     match args.command:
         case "execute":
-            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.keyword} if args.keyword else {})
+            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.kw} if args.kw else {})
             await cmd_execute(args.function_name, yelets_args)
         case "execute-all":
-            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.keyword} if args.keyword else {})
+            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.kw} if args.kw else {})
             await cmd_execute_all(args.function_name, yelets_args)
         case "module":
             await cmd_module()
@@ -232,6 +241,7 @@ async def main():
             await cmd_push()
         case _:
             raise Exception(f"unrecognized command '{args.command}'")
+    response()
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ import xtime
 
 
 class YeletsGrandContext:
-    def __init__(self, *, response: Callable, project: Project, cwd: Path, indentation: str, target_version: str, target_debug: bool, build_dir: Path):
+    def __init__(self, *, response: Callable, project: Project, cwd: Path, indentation: str, target_version: str, target_debug: bool):
         self.response = response
         self.project = project
         self.project_codes: list[str] | None = None
@@ -26,10 +26,11 @@ class YeletsGrandContext:
 {ind}6. not starting with a digit"""
         self.indentation = indentation
         self.target_debug = target_debug
-        self.build_dir = build_dir
+        self.build_dir = Path(cwd, ".build")
 
         # We recreate whole build dir - noone else should occupy it if we're about to use project utilities at full capacity.
-        shutil.rmtree(build_dir)
+        if self.build_dir.exists():
+            shutil.rmtree(self.build_dir)
         self.build_dir.mkdir(parents=True, exist_ok=True)
 
         # Setup version.
