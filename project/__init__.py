@@ -4,6 +4,5 @@ from pydantic import BaseModel
 
 
 class Project(BaseModel):
-    source: Path
     id: str
-    context: dict[str, Any]
+    source: Path

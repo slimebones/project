@@ -36,9 +36,6 @@ build_dir: Path
 target_debug: bool
 target_version: str
 
-current_project: Project
-projects: dict[str, Project] = {}
-
 
 async def cmd_status():
     stdout, stderr, e = call("git status")
@@ -86,11 +83,30 @@ async def cmd_template():
     pass
 
 
-async def execute_project_function(projectfile: Path, function_name: str):
+class YeletsFunctionArgs:
+    def __init__(self, positional, keyword):
+        self.positional = positional
+        self.keyword = keyword
+
+    def __getitem__(self, index: int):
+        try:
+            return self.positional[index]
+        except IndexError:
+            return None
+
+    def __getattribute__(self, key: str) -> Any:
+        return self.keyword.get(key, None)
+
+async def execute_project_function(projectfile: Path, function_name: str, args: YeletsFunctionArgs):
+    project = Project(
+        id="*unknown*",
+        source=projectfile.parent,
+    )
+
     yelets_defines = {
         "grand": YeletsGrandContext(
             response=response,
-            current_project=current_project,
+            project=project,
             cwd=cwd,
             indentation=indentation,
             target_version=target_version,
@@ -99,6 +115,7 @@ async def execute_project_function(projectfile: Path, function_name: str):
         ),
     }
     project_context = yelets.execute_file(projectfile, yelets_defines)
+
     project_id = project_context.get("id", "")
     if not isinstance(project_id, str):
         raise Exception(f"Invalid project name at location '{projectfile}'.")
@@ -107,58 +124,27 @@ async def execute_project_function(projectfile: Path, function_name: str):
     elif project_id is None or project_id == "":
         raise Exception(f"Invalid project configuration at '{projectfile}'.")
 
-    project = Project(
-        id=project_id,
-        source=projectfile.parent,
-        context=project_context,
-    )
-    projects[project.id] = project
+    project.id = project_id
+
+    function = project_context.get(function_name, None)
+    if function is None:
+        raise Exception(f"Could not find a function '{function_name}' at '{projectfile}'.")
+    if not callable(function):
+        raise Exception(f"Object '{function_name}' at '{projectfile}' expected to be callable.")
 
 
-async def cmd_execute(function_name: str):
-    await execute_project_function(Path(cwd, "projectfile"), function_name)
+async def cmd_execute(function_name: str, args: YeletsFunctionArgs):
+    await execute_project_function(Path(cwd, "projectfile"), function_name, args)
 
 
-async def cmd_execute_all(function_name: str):
+async def cmd_execute_all(function_name: str, args: YeletsFunctionArgs):
     # Collect projects.
     for source, subdirs, subfiles in cwd.walk():
         for file in subfiles:
             # @todo We should be able to search for `project`, `project.y`, `project.jai`, etc. Project file implementation does not matter as long as we have a driver for it. What matters, is complying to our standards - drivers should execute file in a way, that left us with a namespace map, with converted to python objects, including functions.
             if file == "projectfile":
                 config_path = Path(source, file)
-                await execute_project_function(config_path, function_name)
-
-
-    response(f"Collected {len(projects)} projects.", end="\n\n")
-
-    # We remove the whole dir ".build" - noone else should occupy it if we're about to use project utilities at full capacity.
-    # Do it at this stage to remove after the projects are collected.
-    shutil.rmtree(build_dir)
-    global build_time
-    build_time = int(time.time() * 1000)
-
-    for i, project in enumerate(projects.values()):
-        if i != 0:
-            # Separate entries.
-            response("")
-
-        response(f"{colorama.Fore.MAGENTA}== BUILD: {project.id} =={colorama.Fore.RESET}")
-        response(colorama.Style.DIM, end="")
-        build_function = project.context.get("build", None)
-        if build_function is None or not callable(build_function):
-            response(f"{colorama.Fore.WHITE}{colorama.Style.DIM}No build procedure.{colorama.Fore.RESET}{colorama.Style.RESET_ALL}")
-            continue
-        global current_project
-        current_project = project
-        try:
-            # @todo Pass some context to custom build functions.
-            build_function()
-        except Exception as error:
-            response(f"{colorama.Fore.RED}ERROR{colorama.Fore.RESET}: Build function of project '{project.id}' panicked with an error: {error}")
-            response(f"{colorama.Fore.RED}Build for '{project.id}' failed.{colorama.Fore.RESET}")
-        else:
-            response(f"{colorama.Fore.GREEN}Build for '{project.id}' finished.{colorama.Fore.RESET}")
-        response(colorama.Style.RESET_ALL, end="")
+                await execute_project_function(config_path, function_name, args)
 
 
 async def main():
@@ -170,12 +156,16 @@ async def main():
     subparsers = parser.add_subparsers(title="Commands", dest="command")
 
     # `project execute`
-    execute_parser = subparsers.add_parser("execute", help="Executes a function from the cwd's projectfile.")
-    execute_parser.add_argument("function_name", type=str)
+    subparser = subparsers.add_parser("execute", help="Executes a function from the cwd's projectfile.")
+    subparser.add_argument("function_name", type=str)
+    subparser.add_argument("positional", nargs="*", help="Positional arguments to a project's function.")
+    subparser.add_argument("--keyword", action="append", nargs=2, metavar=("KEY", "VALUE"), help="Keyword arguments to a project's function.")
 
     # `project execute-all`
-    execute_parser = subparsers.add_parser("execute-all", help="Executes a function from the cwd's projectfile and all the subprojects.")
-    execute_parser.add_argument("function_name", type=str)
+    subparser = subparsers.add_parser("execute-all", help="Executes a function from the cwd's projectfile and all the subprojects.")
+    subparser.add_argument("function_name", type=str)
+    subparser.add_argument("positional", nargs="*", help="Positional arguments to a project's function.")
+    subparser.add_argument("--keyword", action="append", nargs=2, metavar=("KEY", "VALUE"), help="Keyword arguments to a project's function.")
 
     # `project status`
     subparsers.add_parser("status", help="Show status.")
@@ -202,9 +192,11 @@ async def main():
 
     match args.command:
         case "execute":
-            await cmd_execute(args.function_name)
+            args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.keyword} if args.keyword else {})
+            await cmd_execute(args.function_name, args)
         case "execute-all":
-            await cmd_execute_all(args.function_name)
+            args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.keyword} if args.keyword else {})
+            await cmd_execute_all(args.function_name, args)
         case "module":
             await cmd_module()
         case "template":
