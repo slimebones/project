@@ -2,6 +2,8 @@
 
 import argparse
 import asyncio
+import functools
+import inspect
 from call import call
 import commit as commitmod
 import sys
@@ -125,12 +127,30 @@ async def execute_project_function(projectfile: Path, function_name: str, args: 
         raise Exception(f"Invalid project configuration at '{projectfile}'.")
 
     project.id = project_id
+    response(f"{colorama.Fore.MAGENTA}== {colorama.Fore.YELLOW}{project.id}{colorama.Fore.RESET}: {colorama.Fore.CYAN}{function_name}{colorama.Fore.RESET} {colorama.Fore.MAGENTA}=={colorama.Fore.RESET}")
 
     function = project_context.get(function_name, None)
     if function is None:
         raise Exception(f"Could not find a function '{function_name}' at '{projectfile}'.")
     if not callable(function):
         raise Exception(f"Object '{function_name}' at '{projectfile}' expected to be callable.")
+
+    argument_count = len(inspect.signature(function).parameters)
+    final_function = None
+    if argument_count == 1:
+        final_function = functools.partial(function, args)
+    elif argument_count > 1:
+        raise Exception(f"Function '{function_name}' at '{projectfile}' should accept zero or one arguments.")
+    else:
+        final_function = function
+
+    try:
+        final_function()
+    except Exception as e:
+        response(f"{colorama.Fore.RED}ERROR{colorama.Fore.RESET}")
+        raise Exception(f"During execution of a function '{function_name}' at '{projectfile}', an error occurred: {e}") from e
+    else:
+        response(f"{colorama.Fore.GREEN}DONE{colorama.Fore.RESET}")
 
 
 async def cmd_execute(function_name: str, args: YeletsFunctionArgs):
@@ -145,12 +165,13 @@ async def cmd_execute_all(function_name: str, args: YeletsFunctionArgs):
             if file == "projectfile":
                 config_path = Path(source, file)
                 await execute_project_function(config_path, function_name, args)
+                response()
 
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-cwd", type=Path, dest="cwd", default=Path.cwd())
-    parser.add_argument("-v, -version", type=str, default="0.0.0")
+    parser.add_argument("-v, -version", type=str, default="0.0.0", dest="version")
     parser.add_argument("-d, -debug", action="store_true", dest="debug")
 
     subparsers = parser.add_subparsers(title="Commands", dest="command")
@@ -192,11 +213,11 @@ async def main():
 
     match args.command:
         case "execute":
-            args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.keyword} if args.keyword else {})
-            await cmd_execute(args.function_name, args)
+            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.keyword} if args.keyword else {})
+            await cmd_execute(args.function_name, yelets_args)
         case "execute-all":
-            args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.keyword} if args.keyword else {})
-            await cmd_execute_all(args.function_name, args)
+            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.keyword} if args.keyword else {})
+            await cmd_execute_all(args.function_name, yelets_args)
         case "module":
             await cmd_module()
         case "template":

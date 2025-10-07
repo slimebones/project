@@ -17,24 +17,29 @@ BUILTIN = {
 
 def to_python(code: str) -> str:
     result = ""
+    inside_block = False
 
     for line in code.split("\n"):
         l = line.strip()
 
         if l == "}":
+            inside_block = False
             continue
 
         if l.startswith("$"):
-            l.replace("$", "grand.")
-            continue
+            l = l.replace("$", "grand.")
 
-        function_match = re.match(r"^\s*([a-z0-9]+)\s*=\s*fn\s*\(\)\s*{\s*$", l)
+        function_match = re.match(r"^\s*([a-z0-9]+)\s*=\s*fn\s*\((.*)\)\s*{\s*$", l)
         # editor }
         if function_match:
-            result += f"def {function_match.group(1)}():\n"
+            result += f"def {function_match.group(1)}({function_match.group(2)}):\n"
+            inside_block = True
             continue
 
-        result += l + "\n"
+        prefix = ""
+        if inside_block:
+            prefix = "    "
+        result += prefix + l + "\n"
 
     return result
 
@@ -44,6 +49,7 @@ def to_python(code: str) -> str:
 # Returns resulting local namespace.
 def execute(code: str, defines: dict | None = None) -> dict:
     python_code = to_python(code)
+    print(python_code)
 
     globals = {}
     globals.update(BUILTIN)

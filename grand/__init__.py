@@ -72,7 +72,7 @@ class YeletsGrandContext:
         if code != 0:
             raise Exception(f"Call returned code {code}, location '{loc}', command: {command}")
 
-    def buildCode(self, target: PathLike):
+    def code(self, target: PathLike):
         """
         Build a codesheet, writing to given `target`.
 
@@ -112,8 +112,8 @@ class YeletsGrandContext:
                 codenames += f"{self.indentation}{code}: \"{codename}\",\n"
 
             content += """
-    codenames: dict[int, str] = {{
-    {codenames}}}""".format(codenames=codenames)
+codenames: dict[int, str] = {{
+{codenames}}}""".format(codenames=codenames)
 
         elif extension in ["js", "ts"]:
             content += "export const ok = 0;\n"
@@ -123,8 +123,8 @@ class YeletsGrandContext:
                 codenames += f"{self.indentation}{code}: \"{codename}\",\n"
 
             content += """
-    export const codenames = {{
-    {codenames}}};""".format(codenames=codenames)
+export const codenames = {{
+{codenames}}};""".format(codenames=codenames)
 
         else:
             raise Exception(f"Unsupported codes extension '{extension}' at location '{target}'.")
@@ -145,7 +145,7 @@ class YeletsGrandContext:
                         self.include(Path(root).name)
 
 
-    def buildInfo(self, target: PathLike):
+    def info(self, target: PathLike):
         build_timestamp = xtime.timestamp()
 
         self.response(f"Generate build info to '{target}'.")
@@ -178,9 +178,6 @@ class YeletsGrandContext:
             message += f" Destination is altered to '{dest}'."
         self.response(message)
 
-        project_build_dir = Path(self.build_dir, self.project.id)
-        project_build_dir.mkdir(parents=True, exist_ok=True)
-
         if not real_target.exists():
             raise Exception(f"Cannot find include path '{real_target}'.")
         elif real_target.is_dir():
@@ -188,14 +185,14 @@ class YeletsGrandContext:
                 # We cannot just copytree, or an "already-existing" error will be raised. Instead, we will copy everything from the target directory to the build directory.
                 for item in os.listdir(real_target):
                     item_path = Path(real_target, item)
-                    dest_path = Path(project_build_dir, item)
+                    dest_path = Path(self.build_dir, item)
                     if item_path.is_dir():
                         shutil.copytree(item_path, dest_path)
                     else:
                         shutil.copy2(item_path, dest_path)
             else:
-                shutil.copytree(real_target, Path(project_build_dir, dest if dest else target))
+                shutil.copytree(real_target, Path(self.build_dir, dest if dest else target))
         else:
             if dest == ".":
                 raise Exception(f"Include destination of '.' is not allowed for files.")
-            shutil.copy2(real_target, Path(project_build_dir, dest if dest else target))
+            shutil.copy2(real_target, Path(self.build_dir, dest if dest else target))
