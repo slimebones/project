@@ -7,7 +7,7 @@ This software manages project, which are directories with a file named `projectf
 ## Commands
 Commands are organized in the 2 groups:
 1. local to a project: execution of the functions from the `projectfile`: `execute` and `execute-all`
-2. universal: helper commands, such as `init`, `status`, `template`, `push`, ...
+2. universal: helper commands, such as `init`, `status`, `template`, `push`, `module`
 
 ### `project init`
 Creates a new project using template:

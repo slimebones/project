@@ -8,7 +8,9 @@ import sys
 from typing import Any
 from os import PathLike
 import colorama
+from grand import YeletsGrandContext
 import location
+from project import Project
 import yelets
 import os
 from pathlib import Path
@@ -20,19 +22,7 @@ from typing import Callable, Literal
 from pydantic import BaseModel
 
 
-class Project(BaseModel):
-    source: Path
-    id: str
-    context: dict[str, Any]
-
-
 indentation = " " * 4
-codename_rules = """{ind}1. alphanumeric
-{ind}2. lower case
-{ind}3. separated by underscores
-{ind}4. not starting with an underscore
-{ind}5. not ending with an underscore
-{ind}6. not starting with a digit"""
 
 red = '\033[31m'
 green = '\033[32m'
@@ -43,13 +33,14 @@ grey = '\033[90m'
 # Project is always called in the current working directory. @todo add ability to override cwd via CLI.
 cwd = location.cwd()
 build_dir: Path
-project_codes: list[str] = []
+target_debug: bool
+target_version: str
 
 current_project: Project
 projects: dict[str, Project] = {}
 
 
-async def status():
+async def cmd_status():
     stdout, stderr, e = call("git status")
     if e > 0:
         response(f"project status finished with code #{e}")
@@ -57,11 +48,11 @@ async def status():
     response(stderr, end="")
 
 
-async def commit():
+async def cmd_commit():
     commitmod.commit(response)
 
 
-async def update():
+async def cmd_update():
     stdout, stderr, e = call("git pull")
     if e > 0:
         response(f"project update finished with code #{e}")
@@ -69,7 +60,7 @@ async def update():
     response(stderr, end="")
 
 
-async def push():
+async def cmd_push():
     stdout, stderr, e = call("git push")
     if e > 0:
         response(f"project push finished with code #{e}")
@@ -86,199 +77,57 @@ async def push():
 def response(*messages, end: str = "\n", sep: str = " "):
     print(*messages, file=sys.stderr, end=end, sep=sep)
 
-# @legacy this call is custom, when it's available, recommend to use Yelet's `std.call()`
-def yelets_call(command: str, callback: Callable[[int, str], None] | None = None):
-    # Always call relatively to the current project.
-    loc = current_project.source
 
-    # Use nushell command.
-    if "\"" in command:
-        response(f"{colorama.Fore.YELLOW}WARNING{colorama.Fore.RESET}: Please, do not use double-quotes for 'call' commands - they will be replaced with single-quotes. Occurred for project '{current_project.id}', command: {command}")
-        command = command.replace("\"", "'")
-    command = f"nu -c \"{command}\""
+async def cmd_module():
+    pass
 
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=loc,
-        bufsize=1,
-        universal_newlines=True,
+
+async def cmd_template():
+    pass
+
+
+async def execute_project_function(projectfile: Path, function_name: str):
+    yelets_defines = {
+        "grand": YeletsGrandContext(
+            response=response,
+            current_project=current_project,
+            cwd=cwd,
+            indentation=indentation,
+            target_version=target_version,
+            target_debug=target_debug,
+            build_dir=build_dir,
+        ),
+    }
+    project_context = yelets.execute_file(projectfile, yelets_defines)
+    project_id = project_context.get("id", "")
+    if not isinstance(project_id, str):
+        raise Exception(f"Invalid project name at location '{projectfile}'.")
+    elif project_id == "":
+        raise Exception(f"Empty project name at location '{projectfile}'.")
+    elif project_id is None or project_id == "":
+        raise Exception(f"Invalid project configuration at '{projectfile}'.")
+
+    project = Project(
+        id=project_id,
+        source=projectfile.parent,
+        context=project_context,
     )
-    # @todo Make it parallel, somehow. For now it is printed only at the end of the subprocess. At least this behaviour is noticed at Windows.
-    if callback is not None:
-        if process.stdout is not None:
-            for line in process.stdout:
-                callback(1, line)
-        if process.stderr is not None:
-            for line in process.stderr:
-                callback(2, line)
-    code = process.wait()
-    if code != 0:
-        raise Exception(f"Call returned code {code}, location '{loc}', command: {command}")
+    projects[project.id] = project
 
 
-# Build a codesheet, writing to given `target`.
-#
-# Built codesheet includes a programming-language-specific compile-time (or boot-time) constant definitions, and a dictionary-like definition, where the keys are codes, and the values are codenames.
-def yelets_buildCode(target: PathLike):
-    response(f"Generate codes to '{target}'.")
-    target = Path(current_project.source, target)
-    extension = target.suffix.removeprefix(".")
-    content = ""
-    codenames = ""
-    # Codes must be already valid at this point.
-    if extension == "py":
-        content += "ok = 0\n"
-        for code, codename in enumerate(project_codes):
-            code += 1
-            content += f"{codename} = {code}\n"
-            codenames += f"{indentation}{code}: \"{codename}\",\n"
-
-        content += """
-codenames: dict[int, str] = {{
-{codenames}}}""".format(codenames=codenames)
-
-    elif extension in ["js", "ts"]:
-        content += "export const ok = 0;\n"
-        for code, codename in enumerate(project_codes):
-            code += 1
-            content += f"export const {codename} = {code};\n"
-            codenames += f"{indentation}{code}: \"{codename}\",\n"
-
-        content += """
-export const codenames = {{
-{codenames}}};""".format(codenames=codenames)
-
-    else:
-        raise Exception(f"Unsupported codes extension '{extension}' at location '{target}'.")
-    with target.open("w+") as f:
-        f.write(content)
+async def cmd_execute(function_name: str):
+    await execute_project_function(Path(cwd, "projectfile"), function_name)
 
 
-def yelets_buildIncludePython():
-    for root, dirs, files in os.walk(cwd):
-        if Path(root) == cwd:
-            for filename in files:
-                # include requirements and all python filenames
-                if filename in "requirements.txt" or filename.endswith(".py"):
-                    yelets_buildInclude(filename)
-        # search only top-level modules to include
-        elif Path(root).parent == cwd:
-            for filename in files:
-                if filename == "__init__.py":
-                    yelets_buildInclude(Path(root).name)
-
-
-def yelets_buildInfo(target: PathLike):
-    response(f"Generate build info to '{target}'.")
-    target = Path(current_project.source, target)
-    extension = target.suffix.removeprefix(".")
-    auto_message = "AUTO-GENERATED BY THE BUILD SYSTEM. DO NOT EDIT!"
-    content = ""
-    if extension == "py":
-        content = f"# {auto_message}\nproject_id = \"{current_project.id}\"\nversion = \"{build_version}\"\ntimestamp = {build_time}\ndebug = {'True' if build_debug else 'False'}"
-    elif extension in ["js", "ts"]:
-        BRACKET_LEFT = "{"
-        BRACKET_RIGHT = "}"
-        content = f"// {auto_message}\nconst project_id = \"{current_project.id}\";\nconst version = \"{build_version}\";\nconst timestamp = {build_time};\nconst debug = {'true' if build_debug else 'false'};\nexport {BRACKET_LEFT} project_id, version, timestamp, debug {BRACKET_RIGHT};\n"
-    else:
-        raise Exception(f"Unsupported build info extension '{extension}' at location '{target}'.")
-    with target.open("w+") as f:
-        f.write(content)
-
-
-# @todo we also need to use glob as target, like `buildInclude("*.html")`, but in such a case we should disallow `dest`
-def yelets_buildInclude(target: Path | str, dest: Path | str | None = None):
-    target = Path(target)
-    real_target = Path(current_project.source, target)
-
-    message = f"Include target '{target}'."
-    if dest:
-        message += f" Destination is altered to '{dest}'."
-    response(message)
-
-    project_build_dir = Path(build_dir, current_project.id)
-    project_build_dir.mkdir(parents=True, exist_ok=True)
-
-    if not real_target.exists():
-        raise Exception(f"Cannot find include path '{real_target}'.")
-    elif real_target.is_dir():
-        if dest == ".":
-            # We cannot just copytree, or an "already-existing" error will be raised. Instead, we will copy everything from the target directory to the build directory.
-            for item in os.listdir(real_target):
-                item_path = Path(real_target, item)
-                dest_path = Path(project_build_dir, item)
-                if item_path.is_dir():
-                    shutil.copytree(item_path, dest_path)
-                else:
-                    shutil.copy2(item_path, dest_path)
-        else:
-            shutil.copytree(real_target, Path(project_build_dir, dest if dest else target))
-    else:
-        if dest == ".":
-            raise Exception(f"Include destination of '.' is not allowed for files.")
-        shutil.copy2(real_target, Path(project_build_dir, dest if dest else target))
-
-def build(version: str, debug: bool):
-    global build_version_major
-    global build_version_minor
-    global build_version_patch
-    major, minor, patch = version.removeprefix("v").split(".")
-    build_version_major = int(major)
-    build_version_minor = int(minor)
-    build_version_patch = int(patch)
-    if build_version_major < 0 or build_version_minor < 0 or build_version_patch < 0:
-        raise Exception("Wrong version setup.")
-    global build_version
-    build_version = f"{build_version_major}.{build_version_minor}.{build_version_patch}"
-
-    global build_debug
-    build_debug = debug
-
-    message = """Start build process:
-{ind}Root Directory:        {cwd}
-{ind}Build Directory:       {build_dir}
-{ind}Chosen Version:        {build_version}
-{ind}Debug:                 {build_debug}
-""".format(ind=indentation, cwd=cwd, build_version=build_version, build_debug=build_debug, build_dir=build_dir)
-    response(message)
-
-    build_dir.mkdir(parents=True, exist_ok=True)
-
+async def cmd_execute_all(function_name: str):
     # Collect projects.
     for source, subdirs, subfiles in cwd.walk():
         for file in subfiles:
             # @todo We should be able to search for `project`, `project.y`, `project.jai`, etc. Project file implementation does not matter as long as we have a driver for it. What matters, is complying to our standards - drivers should execute file in a way, that left us with a namespace map, with converted to python objects, including functions.
             if file == "projectfile":
                 config_path = Path(source, file)
-                # We must have a name, or we consider project.cfg not matching our ideology.
+                await execute_project_function(config_path, function_name)
 
-                yelets_defines = {
-                    "buildInfo": yelets_buildInfo,
-                    "call": yelets_call,
-                    "buildInclude": yelets_buildInclude,
-                    "buildCode": yelets_buildCode,
-                    "buildIncludePython": yelets_buildIncludePython,
-                }
-                project_context = yelets.execute_file(config_path, yelets_defines)
-                project_id = project_context.get("id", "")
-                if not isinstance(project_id, str):
-                    response(f"Invalid project name at location '{config_path}'.")
-                    continue
-                elif project_id == "":
-                    response(f"Empty project name at location '{config_path}'.")
-                    continue
-                elif project_id is None or project_id == "":
-                    response(f"Skip invalid project configuration at '{config_path}'.")
-                    continue
-
-                project = Project(
-                    source=source,
-                    id=project_id,
-                    context=project_context,
-                )
-                projects[project.id] = project
 
     response(f"Collected {len(projects)} projects.", end="\n\n")
 
@@ -313,65 +162,61 @@ def build(version: str, debug: bool):
 
 
 async def main():
-    global cwd
-    global build_dir
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-cwd", type=Path, dest="cwd", default=Path.cwd())
+    parser.add_argument("-v, -version", type=str, default="0.0.0")
+    parser.add_argument("-d, -debug", action="store_true", dest="debug")
 
     subparsers = parser.add_subparsers(title="Commands", dest="command")
 
-    # `project build`
-    build_parser = subparsers.add_parser("build", help="Build.")
-    build_parser.add_argument("version", type=str)
-    build_parser.add_argument("-debug", action="store_true", dest="debug")
+    # `project execute`
+    execute_parser = subparsers.add_parser("execute", help="Executes a function from the cwd's projectfile.")
+    execute_parser.add_argument("function_name", type=str)
+
+    # `project execute-all`
+    execute_parser = subparsers.add_parser("execute-all", help="Executes a function from the cwd's projectfile and all the subprojects.")
+    execute_parser.add_argument("function_name", type=str)
 
     # `project status`
-    build_parser = subparsers.add_parser("status", help="Show status.")
+    subparsers.add_parser("status", help="Show status.")
 
     # `project commit`
-    build_parser = subparsers.add_parser("commit", help="Commit changes.")
+    subparsers.add_parser("commit", help="Commit changes.")
 
     # `project push`
-    build_parser = subparsers.add_parser("push", help="Push changes.")
+    subparsers.add_parser("push", help="Push changes.")
 
     # `project update`
-    build_parser = subparsers.add_parser("update", help="Update from version control.")
+    subparsers.add_parser("update", help="Update from version control.")
 
     args = parser.parse_args()
+    global cwd
     cwd = args.cwd
+    global build_dir
     build_dir = Path(cwd, ".build")
+    global target_version
+    target_version = args.version
+    global target_debug
+    target_debug = args.debug
 
-    code_path = Path(cwd, "code.txt")
-    if code_path.exists():
-        with code_path.open("r") as file:
-            lines = file.readlines()
-            for line in lines:
-                line = line.strip().lower()
-                # Codes must be parsed strictly. We want our `codes.txt` file to look clean.
-                # We add even empty lines - codes must be correctly enumerated. Later empty lines will be replaced by empty lines during code-file generation.
-                if line:
-                    if line in ["ok", "codenames"]:
-                        raise Exception(f"Cannot use reserved codename '{line}'.")
-                    if not re.match(r"^(?![0-9])(?<!_)([a-z0-9]+(?:_[a-z0-9]+)*)[^_]$", line):
-                        raise Exception(f"Invalid codename: '{line}'. Codename rules:\n{codename_rules.format(ind=indentation)}")
-                    if line in project_codes:
-                        raise Exception(f"Duplicate definition of a codename '{line}'.")
-
-                project_codes.append(line)
-        # response(f"Collected {len(project_codes)} project codes.", end="\n\n")
 
     match args.command:
-        case "build":
-            build(args.version, args.debug)
+        case "execute":
+            await cmd_execute(args.function_name)
+        case "execute-all":
+            await cmd_execute_all(args.function_name)
+        case "module":
+            await cmd_module()
+        case "template":
+            await cmd_template()
         case "status":
-            await status()
+            await cmd_status()
         case "commit":
-            await commit()
+            await cmd_commit()
         case "update":
-            await update()
+            await cmd_update()
         case "push":
-            await push()
+            await cmd_push()
         case _:
             raise Exception(f"unrecognized command '{args.command}'")
 

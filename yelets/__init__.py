@@ -1,5 +1,7 @@
 """
-Yelets interpreter, prototype Python implementation.
+Yelets interpreter, Python implementation.
+
+We either panic, or return something meaningful.
 """
 
 import argparse
@@ -17,15 +19,22 @@ def to_python(code: str) -> str:
     result = ""
 
     for line in code.split("\n"):
-        function_match = re.match(r"^\s*([a-z0-9]+)\s*=\s*fn\s*\(\)\s*{\s*$", line)
+        l = line.strip()
+
+        if l == "}":
+            continue
+
+        if l.startswith("$"):
+            l.replace("$", "grand.")
+            continue
+
+        function_match = re.match(r"^\s*([a-z0-9]+)\s*=\s*fn\s*\(\)\s*{\s*$", l)
         # editor }
         if function_match:
             result += f"def {function_match.group(1)}():\n"
             continue
-        elif line.strip() == "}":
-            continue
-        line = line.removesuffix(";")
-        result += line + "\n"
+
+        result += l + "\n"
 
     return result
 
