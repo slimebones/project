@@ -57,8 +57,6 @@ id = "python.my_module"
 version = "0.4.9"
 ```
 
-The installed or uploaded dependencies receive a generated file called `modulehash`, which contain a combined hash of the module's contents. If an user changes any module, further `project module install` and `project module upload` calls affecting the module will be rejected until all the unconsistencies are fixed. The changed module can be re-uploaded by calling `project module update -force`.
-
 
 ### `project status`
 Displays information about the current project.
