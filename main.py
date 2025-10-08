@@ -1,5 +1,19 @@
 # Project management tool.
 
+import build
+
+import location
+location.init(build.project_id)
+
+import log
+log.init()
+
+import config
+config.init()
+
+import xtime
+xtime.init()
+
 import argparse
 import asyncio
 import functools

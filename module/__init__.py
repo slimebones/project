@@ -40,7 +40,7 @@ def install(projectfile: Path, target_version: str, target_debug: bool):
             pass
         else:
             # request module tar from the server
-            response = _request(f"download/{module.id}/{module.version}")
+            response = _request(f"download/@{module.id}={module.version}")
             # unwrap tar on the fly
             with tarfile.open(fileobj=io.BytesIO(response.content), mode="r:gz") as tar:
                 tar.extractall(path=path)
@@ -53,3 +53,12 @@ def add():
 
 def upload():
     pass
+
+
+def _compress(dir: Path) -> bytes:
+    byte_stream = io.BytesIO()
+    with tarfile.open(fileobj=byte_stream, mode="w:gz") as tar:
+        for item in dir.iterdir():
+            tar.add(item, arcname=item.name)
+    byte_stream.seek(0)
+    return byte_stream.getvalue()
