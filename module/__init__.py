@@ -1,8 +1,10 @@
 """
 Client to manage modules.
 """
+import io
 import os
 from pathlib import Path
+import tarfile
 
 from pydantic import BaseModel
 import config
@@ -27,10 +29,21 @@ def init():
         raise Exception(f"module: configured port should be integer") from e
 
 
+def _request(route: str, data: bytes = bytes()) -> httpx.Response:
+    return httpx.request("post", f"http://{host}:{port}/{route}", content=data)
+
+
 def install(projectfile: Path, target_version: str, target_debug: bool):
     project = Project.read(projectfile, target_version, target_debug)
-    for module in project.modules:
-        print(module)
+    for path, module in project.modules.items():
+        if path.exists():
+            pass
+        else:
+            # request module tar from the server
+            response = _request(f"download/{module.id}/{module.version}")
+            # unwrap tar on the fly
+            with tarfile.open(fileobj=io.BytesIO(response.content), mode="r:gz") as tar:
+                tar.extractall(path=path)
 
 
 def add():

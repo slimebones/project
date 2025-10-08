@@ -1,6 +1,6 @@
 set shell := ["nu", "-c"]
 
-run *args:
+main *args:
     @ python main.py {{args}}
 
 test:

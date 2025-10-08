@@ -15,6 +15,7 @@ from controller import response
 from grand import YeletsGrandContext
 import location
 from model import Module, Project
+import module
 import yelets
 import os
 from pathlib import Path
@@ -64,14 +65,6 @@ async def cmd_push():
         response(f"project push tags finished with code #{e}")
     response(stdout, end="")
     response(stderr, end="")
-
-
-async def cmd_module():
-    pass
-
-
-async def cmd_template():
-    pass
 
 
 class YeletsFunctionArgs:
@@ -162,6 +155,9 @@ async def main():
     subparser.add_argument("positional", nargs="*", help="Positional arguments to a project's function.")
     subparser.add_argument("-kw", action="append", nargs=2, metavar=("KEY", "VALUE"), help="Keyword arguments to a project's function.")
 
+    # `project install`
+    subparsers.add_parser("install", help="Installs/Refreshes all project-specified dependencies.")
+
     # `project status`
     subparsers.add_parser("status", help="Show status.")
 
@@ -192,6 +188,7 @@ async def main():
     if args_kw is None:
         args_kw = {}
 
+    projectfile = Path(cwd, "projectfile")
     response()
     match args.command:
         case "execute":
@@ -200,10 +197,10 @@ async def main():
         case "execute-all":
             yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args_kw})
             await cmd_execute_all(args.function_name, yelets_args)
-        case "module":
-            await cmd_module()
+        case "install":
+            module.install(projectfile, target_version, target_debug)
         case "template":
-            await cmd_template()
+            pass
         case "status":
             await cmd_status()
         case "commit":

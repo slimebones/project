@@ -57,7 +57,7 @@ class Project(BaseModel):
 
         modules = ctx.get("modules", {})
         processed_modules = {}
-        for k, v in modules.keys():
+        for k, v in modules.items():
             processed_modules[Path(k)] = Module(
                 id=v["id"],
                 version=v["version"],

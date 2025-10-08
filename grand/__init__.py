@@ -4,16 +4,18 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import colorama
 
-from model import Project
 import xtime
+
+if TYPE_CHECKING:
+    from model import Project
 
 
 class YeletsGrandContext:
-    def __init__(self, *, response: Callable, project: Project, cwd: Path, indentation: str, target_version: str, target_debug: bool):
+    def __init__(self, *, response: Callable, project: "Project", cwd: Path, indentation: str, target_version: str, target_debug: bool):
         self.response = response
         self.project = project
         self.project_codes: list[str] | None = None

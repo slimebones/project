@@ -40,15 +40,15 @@ Every executable function can access current args by calling the `args()` functi
 Executes a function for every project in the stack. The same arguments are passed for each function.
 
 
-### `project module add {dependency_name} {version: optional, defaults "latest"} {output_directory: optional, default to the original dependency name}`
+### `project add {dependency_name} {version: optional, defaults "latest"} {output_directory: optional, default to the original dependency name}`
 Adds a dependency to a project.
 
 
-### `project module install`
+### `project install`
 Installs/Refreshes all project-specified dependencies. Every dependency is a directory, containing correct `modulefile`.
 
 
-### `project module upload {module_directory}`
+### `project upload {module_directory}`
 Uploads a dependency to a server, specified in project's `user.cfg`. Dependency version must be unique for a chosen domain and module name, and must not be lower than the latest version of this dependency name for the given domain uploaded. Also, the upload will be blocked if attempted to upload newest version from one, that is lower than the latest uploaded one.
 
 Module file of a dependency may look as follows (`id` and `version` must be defined):

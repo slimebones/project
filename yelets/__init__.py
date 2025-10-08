@@ -17,13 +17,13 @@ BUILTIN = {
 
 def to_python(code: str) -> str:
     result = ""
-    inside_block = False
+    inside_function_block = False
 
     for line in code.split("\n"):
         l = line.strip()
 
-        if l == "}":
-            inside_block = False
+        if l == "}" and inside_function_block:
+            inside_function_block = False
             continue
 
         if l.startswith("$"):
@@ -33,11 +33,11 @@ def to_python(code: str) -> str:
         # editor }
         if function_match:
             result += f"def {function_match.group(1)}({function_match.group(2)}):\n"
-            inside_block = True
+            inside_function_block = True
             continue
 
         prefix = ""
-        if inside_block:
+        if inside_function_block:
             prefix = "    "
         result += prefix + l + "\n"
 
