@@ -8,7 +8,7 @@ from typing import Callable
 
 import colorama
 
-from project import Project
+from model import Project
 import xtime
 
 

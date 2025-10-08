@@ -6,13 +6,15 @@ import functools
 import inspect
 from call import call
 import commit as commitmod
+import const
 import sys
 from typing import Any
 from os import PathLike
 import colorama
+from controller import response
 from grand import YeletsGrandContext
 import location
-from project import Project
+from model import Module, Project
 import yelets
 import os
 from pathlib import Path
@@ -22,15 +24,6 @@ import subprocess
 import time
 from typing import Callable, Literal
 from pydantic import BaseModel
-
-
-indentation = " " * 4
-
-red = '\033[31m'
-green = '\033[32m'
-reset = '\033[0m'
-grey = '\033[90m'
-# ]]]] nvim fix
 
 # Project is always called in the current working directory. @todo add ability to override cwd via CLI.
 cwd = location.cwd()
@@ -73,10 +66,6 @@ async def cmd_push():
     response(stderr, end="")
 
 
-def response(*messages, end: str = "\n", sep: str = " "):
-    print(*messages, file=sys.stderr, end=end, sep=sep)
-
-
 async def cmd_module():
     pass
 
@@ -105,36 +94,13 @@ class YeletsFunctionArgs:
         else:
             return self.keyword.get(key, None)
 
+
 async def execute_project_function(projectfile: Path, function_name: str, args: YeletsFunctionArgs):
-    project = Project(
-        id="*unknown*",
-        source=projectfile.parent,
-    )
+    project = Project.read(projectfile, target_version=target_version, target_debug=target_debug)
 
-    yelets_defines = {
-        "grand": YeletsGrandContext(
-            response=response,
-            project=project,
-            cwd=projectfile.parent,
-            indentation=indentation,
-            target_version=target_version,
-            target_debug=target_debug,
-        ),
-    }
-    project_context = yelets.execute_file(projectfile, yelets_defines)
-
-    project_id = project_context.get("id", "")
-    if not isinstance(project_id, str):
-        raise Exception(f"Invalid project name at location '{projectfile}'.")
-    elif project_id == "":
-        raise Exception(f"Empty project name at location '{projectfile}'.")
-    elif project_id is None or project_id == "":
-        raise Exception(f"Invalid project configuration at '{projectfile}'.")
-
-    project.id = project_id
     response(f"{colorama.Fore.MAGENTA}== {colorama.Fore.YELLOW}{project.id}{colorama.Fore.RESET}: {colorama.Fore.CYAN}{function_name}{colorama.Fore.RESET} {colorama.Fore.MAGENTA}=={colorama.Fore.RESET}")
 
-    function = project_context.get(function_name, None)
+    function = project.context.get(function_name, None)
     if function is None:
         raise Exception(f"Could not find a function '{function_name}' at '{projectfile}'.")
     if not callable(function):
@@ -218,14 +184,21 @@ async def main():
     global target_debug
     target_debug = args.debug
 
+    try:
+        args_kw = args.kw
+    except Exception:
+        args_kw = {}
+
+    if args_kw is None:
+        args_kw = {}
 
     response()
     match args.command:
         case "execute":
-            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.kw} if args.kw else {})
+            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args_kw})
             await cmd_execute(args.function_name, yelets_args)
         case "execute-all":
-            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args.kw} if args.kw else {})
+            yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args_kw})
             await cmd_execute_all(args.function_name, yelets_args)
         case "module":
             await cmd_module()

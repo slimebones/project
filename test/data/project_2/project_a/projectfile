@@ -2,6 +2,5 @@ id = "project_a"
 
 build = fn (a) {
     $info("build.py")
-    assert False, a
     $includePython()
 }

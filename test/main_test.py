@@ -33,8 +33,8 @@ def test_project_1():
     assert Path(build_dir, "module_a/__init__.py").exists()
 
 def test_project_2():
-    _, _, e = call_venv("-v 0.1.0 execute-all build", "test/data/project_2")
-    assert e == 0
+    _, stderr, e = call_venv("-v 0.1.0 execute-all build", "test/data/project_2")
+    assert e == 0, stderr
 
     main_build_dir = Path("test/data/project_2/.build")
     assert main_build_dir.exists()

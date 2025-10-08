@@ -1,4 +1,10 @@
 id = "project_1"
+modules = {
+    "example": {
+        "id": "python.example",
+        "version": "0.1.0",
+    }
+}
 
 build = fn () {
     $info("build.py")

@@ -60,10 +60,6 @@ version = "0.4.9"
 The installed or uploaded dependencies receive a generated file called `modulehash`, which contain a combined hash of the module's contents. If an user changes any module, further `project module install` and `project module upload` calls affecting the module will be rejected until all the unconsistencies are fixed. The changed module can be re-uploaded by calling `project module update -force`.
 
 
-### `project module install {dependency_directory} [-force]`
-Updates a single module, if called in their's directory. This logic is similar that is called for each project's dependency by `project dependency install`. Flag `-force` ensures that full update is made in case of hash-unconsistencies.
-
-
 ### `project status`
 Displays information about the current project.
 
