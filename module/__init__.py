@@ -33,8 +33,8 @@ def _request(route: str, data: bytes = bytes()) -> httpx.Response:
     return httpx.request("post", f"http://{host}:{port}/{route}", content=data)
 
 
-def install(projectfile: Path, target_version: str, target_debug: bool):
-    project = Project.read(projectfile, target_version, target_debug)
+def install(projectfile: Path, target_version: str, target_debug: bool, cwd: Path):
+    project = Project.read(projectfile, target_version, target_debug, cwd)
     for path, module in project.modules.items():
         if path.exists():
             pass

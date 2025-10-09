@@ -83,6 +83,7 @@ class YeletsGrandContext:
         """
         if self.project_codes is None:
             self.project_codes = []
+            # note that we always search `code.txt` under the current working directory
             code_path = Path(self.cwd, "code.txt")
             if code_path.exists():
                 with code_path.open("r") as file:
@@ -135,14 +136,14 @@ export const codenames = {{
             f.write(content)
 
     def includePython(self):
-        for root, dirs, files in os.walk(self.cwd):
-            if Path(root) == self.cwd:
+        for root, dirs, files in os.walk(self.project.source):
+            if Path(root) == self.project.source:
                 for filename in files:
                     # include requirements and all python filenames
                     if filename in "requirements.txt" or filename.endswith(".py"):
                         self.include(filename)
             # search only top-level modules to include
-            elif Path(root).parent == self.cwd:
+            elif Path(root).parent == self.project.source:
                 for filename in files:
                     if filename == "__init__.py":
                         self.include(Path(root).name)

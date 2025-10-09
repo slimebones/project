@@ -103,7 +103,7 @@ class YeletsFunctionArgs:
 
 
 async def execute_project_function(projectfile: Path, function_name: str, args: YeletsFunctionArgs):
-    project = Project.read(projectfile, target_version=target_version, target_debug=target_debug)
+    project = Project.read(projectfile, target_version=target_version, target_debug=target_debug, cwd=cwd)
 
     response(f"{colorama.Fore.MAGENTA}== {colorama.Fore.YELLOW}{project.id}{colorama.Fore.RESET}: {colorama.Fore.CYAN}{function_name}{colorama.Fore.RESET} {colorama.Fore.MAGENTA}=={colorama.Fore.RESET}")
 
@@ -212,7 +212,7 @@ async def main():
             yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args_kw})
             await cmd_execute_all(args.function_name, yelets_args)
         case "install":
-            module.install(projectfile, target_version, target_debug)
+            module.install(projectfile, target_version, target_debug, cwd)
         case "template":
             pass
         case "status":

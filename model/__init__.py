@@ -28,7 +28,7 @@ class Project(BaseModel):
     context: dict
 
     @classmethod
-    def read(cls, f: Path, target_version, target_debug) -> Self:
+    def read(cls, f: Path, target_version, target_debug, cwd) -> Self:
         project = cls(
             id="*unknown*",
             source=f.parent,
@@ -39,7 +39,7 @@ class Project(BaseModel):
             "grand": YeletsGrandContext(
                 response=response,
                 project=project,
-                cwd=f.parent,
+                cwd=cwd,
                 indentation=const.indentation,
                 target_version=target_version,
                 target_debug=target_debug,
