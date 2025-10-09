@@ -28,7 +28,7 @@ class YeletsGrandContext:
 {ind}6. not starting with a digit"""
         self.indentation = indentation
         self.target_debug = target_debug
-        self.build_dir = Path(cwd, ".build")
+        self.build_dir = Path(project.source, ".build")
 
         # We recreate whole build dir - noone else should occupy it if we're about to use project utilities at full capacity.
         if self.build_dir.exists():
