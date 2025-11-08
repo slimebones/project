@@ -17,26 +17,26 @@ BUILTIN = {
 
 def to_python(code: str, imports: dict | None = None) -> tuple[str, dict]:
     result = ""
-    inside_function_block = False
+    ind = 0
     globs = {}
 
     for i, line in enumerate(code.splitlines()):
         linenumber = i + 1
         l = line.strip()
 
-        if l == "}" and inside_function_block:
-            inside_function_block = False
+        if l == "}":
+            ind -= 1
+            if ind < 0:
+                # but probably an error here
+                ind = 0
             continue
 
-        prefix = ""
-        if inside_function_block:
-            prefix = "    "
+        prefix = " " * ind
 
         function_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*fn\s*\((.*)\)\s*{\s*$", l)
-        # editor }
         if function_match:
             result += f"{prefix}def {function_match.group(1)}({function_match.group(2)}):\n"
-            inside_function_block = True
+            ind += 1
             continue
 
         import_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*@import\s*\(\"([A-z0-9_-\.]+)\"\)\s*$", l)
@@ -47,6 +47,24 @@ def to_python(code: str, imports: dict | None = None) -> tuple[str, dict]:
                 raise Exception(f"yelets: unrecognized import '{importname}' at line {linenumber}")
             imp = imports[importname]
             globs[varname] = imp
+            continue
+
+        if_match = re.match(r"^\s*if\s*(.+)\s*{\s*$", l)
+        if if_match:
+            result += f"{prefix}if {if_match.group(1)}:\n"
+            ind += 1
+            continue
+
+        for_match = re.match(r"^\s*for\s*(.+)\s*{\s*$", l)
+        if for_match:
+            result += f"{prefix}for {for_match.group(1)}:\n"
+            ind += 1
+            continue
+
+        while_match = re.match(r"^\s*while\s*(.+)\s*{\s*$", l)
+        if while_match:
+            result += f"{prefix}while {while_match.group(1)}:\n"
+            ind += 1
             continue
 
         result += prefix + l + "\n"
