@@ -1,3 +1,5 @@
+project = @import("project")
+
 id = "project_1"
 modules = {
     "example": {
@@ -11,8 +13,8 @@ modules = {
 }
 
 build = fn () {
-    $info("build.py")
-    $code("codes.py")
+    project.info("build.py")
+    project.code("codes.py")
 
-    $includePython()
+    project.includePython()
 }

@@ -15,54 +15,63 @@ BUILTIN = {
     "panic": panic,
 }
 
-def to_python(code: str) -> str:
+def to_python(code: str, imports: dict | None = None) -> tuple[str, dict]:
     result = ""
     inside_function_block = False
+    globs = {}
 
-    for line in code.split("\n"):
+    for i, line in enumerate(code.splitlines()):
+        linenumber = i + 1
         l = line.strip()
 
         if l == "}" and inside_function_block:
             inside_function_block = False
             continue
 
-        if l.startswith("$"):
-            l = l.replace("$", "grand.")
-
-        function_match = re.match(r"^\s*([a-z0-9]+)\s*=\s*fn\s*\((.*)\)\s*{\s*$", l)
-        # editor }
-        if function_match:
-            result += f"def {function_match.group(1)}({function_match.group(2)}):\n"
-            inside_function_block = True
-            continue
-
         prefix = ""
         if inside_function_block:
             prefix = "    "
+
+        function_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*fn\s*\((.*)\)\s*{\s*$", l)
+        # editor }
+        if function_match:
+            result += f"{prefix}def {function_match.group(1)}({function_match.group(2)}):\n"
+            inside_function_block = True
+            continue
+
+        import_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*@import\s*\(\"([A-z0-9_-\.]+)\"\)\s*$", l)
+        if import_match:
+            varname = import_match.group(1)
+            importname = import_match.group(2)
+            if not imports or importname not in imports:
+                raise Exception(f"yelets: unrecognized import '{importname}' at line {linenumber}")
+            imp = imports[importname]
+            globs[varname] = imp
+            continue
+
         result += prefix + l + "\n"
 
-    return result
+    return result, globs
 
 
 # Convert everything to python, and execute as python script.
 #
 # Returns resulting local namespace.
-def execute(code: str, defines: dict | None = None) -> dict:
-    python_code = to_python(code)
+def execute(code: str, imports: dict | None = None) -> dict:
+    python_code, globs = to_python(code, imports)
 
     globals = {}
     globals.update(BUILTIN)
-    if defines:
-        globals.update(defines)
+    globals.update(globs)
     locals = {}
     exec(python_code, globals, locals)
     return locals
 
 
-def execute_file(p: Path, defines: dict | None = None) -> dict:
+def execute_file(p: Path, imports: dict | None = None) -> dict:
     with p.open("r") as file:
         code = file.read()
-    return execute(code, defines)
+    return execute(code, imports)
 
 
 def main():

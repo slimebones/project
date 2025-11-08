@@ -4,8 +4,8 @@ import const
 from pydantic import BaseModel
 
 from controller import response
-from grand import YeletsGrandContext
 import yelets
+import yelets_import
 
 
 class Module(BaseModel):
@@ -35,17 +35,18 @@ class Project(BaseModel):
             modules={},
             context={},
         )
-        defines = {
-            "grand": YeletsGrandContext(
-                response=response,
-                project=project,
-                cwd=cwd,
-                indentation=const.indentation,
-                target_version=target_version,
-                target_debug=target_debug,
-            ),
+        yelets_import.init(
+            response=response,
+            project=project,
+            cwd=cwd,
+            indentation=const.indentation,
+            target_version=target_version,
+            target_debug=target_debug,
+        )
+        imports = {
+            "project": yelets_import.imp,
         }
-        ctx = yelets.execute_file(f, defines)
+        ctx = yelets.execute_file(f, imports)
 
         project_id = ctx.get("id", "")
         if not isinstance(project_id, str):
