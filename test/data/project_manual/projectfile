@@ -2,13 +2,13 @@ project = @import("project")
 
 id = "project_1"
 modules = {
-    "example": {
-        "id": "python.example",
-        "version": "0.1.0",
+    example: {
+        id: "python.example",
+        version: "0.1.0",
     },
-    "example2": {
-        "id": "python.example2",
-        "version": "0.4.0",
+    example2: {
+        id: "python.example2",
+        version: "0.4.0",
     },
 }
 

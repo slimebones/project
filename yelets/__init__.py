@@ -7,31 +7,67 @@ We either panic, or return something meaningful.
 import argparse
 from pathlib import Path
 import re
+from typing import Any
+
 
 def panic(message: str):
     raise Exception("PANIC: " + message)
+
 
 BUILTIN = {
     "panic": panic,
 }
 
+
+class Namespace:
+    def __init__(self, **kwargs) -> None:
+        self._data = kwargs
+
+    def __getattribute__(self, __name: str) -> Any:
+        if __name.startswith("_"):
+            return super().__getattribute__(__name)
+        else:
+            return self._data[__name]
+
+
 def to_python(code: str, imports: dict | None = None) -> tuple[str, dict]:
     result = ""
     ind = 0
+    preserve_block_close = 0
     globs = {}
 
     for i, line in enumerate(code.splitlines()):
         linenumber = i + 1
         l = line.strip()
+        prefix = "    " * ind
 
-        if l == "}":
-            ind -= 1
-            if ind < 0:
-                # but probably an error here
-                ind = 0
+        if l == "}" or l == "},":
+            if ind:
+                ind -= 1
+            prefix = "    " * (ind)
+            if preserve_block_close:
+                preserve_block_close -= 1
+                result += prefix + l + "\n"
             continue
 
-        prefix = " " * ind
+        dict_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*{\s*$", l)
+        if dict_match:
+            result += f"{prefix}{dict_match.group(1)} = " + "{\n"
+            preserve_block_close += 1
+            ind += 1
+            continue
+
+        subdict_match = re.match(r"^\s*\"?([A-z0-9_]+)\"?\s*:\s*{\s*$", l)
+        if subdict_match:
+            result += f"{prefix}\"{subdict_match.group(1)}\":" + " {\n"
+            preserve_block_close += 1
+            ind += 1
+            continue
+
+        subdict_direct_match = re.match(r"^\s*\"?([A-z0-9_]+)\"?\s*:\s*(.+)\s*$", l)
+        if subdict_direct_match:
+            result += f"{prefix}\"{subdict_direct_match.group(1)}\": {subdict_direct_match.group(2)}\n"
+            continue
 
         function_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*fn\s*\((.*)\)\s*{\s*$", l)
         if function_match:
@@ -39,14 +75,14 @@ def to_python(code: str, imports: dict | None = None) -> tuple[str, dict]:
             ind += 1
             continue
 
-        import_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*@import\s*\(\"([A-z0-9_-\.]+)\"\)\s*$", l)
+        import_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*@import\s*\(\"([A-z0-9_\-\.]+)\"\)\s*$", l)
         if import_match:
             varname = import_match.group(1)
             importname = import_match.group(2)
             if not imports or importname not in imports:
                 raise Exception(f"yelets: unrecognized import '{importname}' at line {linenumber}")
             imp = imports[importname]
-            globs[varname] = imp
+            globs[varname] = Namespace(**imp)
             continue
 
         if_match = re.match(r"^\s*if\s*(.+)\s*{\s*$", l)
