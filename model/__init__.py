@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from controller import response
 import yelets
-import yelets_import
+import yelets_project
 
 
 class Module(BaseModel):
@@ -35,7 +35,7 @@ class Project(BaseModel):
             modules={},
             context={},
         )
-        yelets_import.init(
+        yelets_project.init(
             response=response,
             project=project,
             cwd=cwd,
@@ -44,7 +44,7 @@ class Project(BaseModel):
             target_debug=target_debug,
         )
         imports = {
-            "project": yelets_import.imp,
+            "project": yelets_project.imp,
         }
         ctx = yelets.execute_file(f, imports)
 

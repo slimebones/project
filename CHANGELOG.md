@@ -3,6 +3,7 @@
 * support yelets imports, project functions are now available under `@import("project")`
 * support yelets if, for, while
 * support install, add and upload
+* support yelets Path
 
 --------------------------------------------------------------------------------
 0.2.0, 26 September 2025

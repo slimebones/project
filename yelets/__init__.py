@@ -16,6 +16,7 @@ def panic(message: str):
 
 BUILTIN = {
     "panic": panic,
+    "Path": Path,
 }
 
 

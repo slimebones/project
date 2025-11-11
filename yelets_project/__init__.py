@@ -7,6 +7,7 @@ import subprocess
 from typing import TYPE_CHECKING, Callable
 
 import colorama
+import httpx
 
 import xtime
 
@@ -224,10 +225,44 @@ def include(target: Path | str, dest: Path | str | None = None):
         shutil.copy2(real_target, Path(_build_dir, dest if dest else target))
 
 
+class Host:
+    """
+    Provides functionality to interact with remote machines.
+    """
+    def __init__(self, host: str):
+        self._host: str = host
+        self._executor_secret: str | None = None
+
+    def setExecutorSecret(self, secret: str):
+        self._executor_secret = secret
+
+    def execute(self, command: str, *, background: bool = False, cwd: str | None, port: int = 6650):
+        """
+        Executes a command on the remote server, using `executor` service.
+        """
+        if not self._executor_secret:
+            raise Exception(f"please set executor secret first using function `host.setExecutorSecret()`")
+        payload = {
+            "command": command,
+            "background": background,
+        }
+        if cwd:
+            payload["cwd"] = cwd
+        r = httpx.post(f"http://{self._host}:{port}/main/execute", json=payload, headers={"secret": self._executor_secret})
+        if r.status_code != 200:
+            raise Exception(f"error while executing: status {r.status_code}, text {r.text}")
+        data = r.json()
+        retcode = data["retcode"]
+        stdout = data["stdout"]
+        stderr = data["stderr"]
+        _response(f"(Host {self._host}): execution of a command '{command}' has been finished with a retcode {retcode}, stdout |{stdout}|, stderr |{stderr}|")
+
+
 imp = {
     "info": info,
     "code": code,
     "call": call,
     "includePython": includePython,
     "include": include,
+    "Host": Host,
 }
