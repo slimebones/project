@@ -75,6 +75,7 @@ def to_python(code: str, imports: dict | None = None) -> tuple[str, dict]:
             ind += 1
             continue
 
+        # for now, imports act as global namespace update, even if they are executed locally
         import_match = re.match(r"^\s*([A-z0-9_]+)\s*=\s*@import\s*\(\"([A-z0-9_\-\.]+)\"\)\s*$", l)
         if import_match:
             varname = import_match.group(1)
