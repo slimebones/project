@@ -27,16 +27,10 @@ def extra(k: str, v: Any):
     context.set(d)
 
 def info(message: str):
-    try:
-        _save("info", message, None)
-    except asyncio.QueueFull:
-        print(f"CONSOLE: Log queue full.", file=sys.stderr)  # noqa: T201
+    _save("info", message, None)
 
 def warn(message: str):
-    try:
-        _save("warning", "WARNING: " + message, None)
-    except asyncio.QueueFull:
-        print(f"CONSOLE: Log queue full.", file=sys.stderr)  # noqa: T201
+    _save("warning", "WARNING: " + message, None)
 
 def error(message: str, trace: Exception | None = None):
     """
@@ -45,24 +39,23 @@ def error(message: str, trace: Exception | None = None):
     will be incorrect.
     """
     trace_id: str | None = None
+    trace_path = None
 
     # Trace error to special storage.
     if trace:
-        loc_dir = location.user(Path("logs", "traces"))
+        loc_dir = location.user(Path("log", "trace"))
         loc_dir.mkdir(parents=True, exist_ok=True)
         trace_id = xrandom.makeid()
         loc_name = trace_id
         loc = Path(loc_dir, loc_name + ".log")
         with loc.open("w+") as file:
             file.write(f"Trace #{trace_id} for an error '{trace}':\n" + traceback.format_exc())
-    try:
-        _save("error", "ERROR: " + message, trace_id)
-    except asyncio.QueueFull:
-        print(f"CONSOLE: Log queue full.", file=sys.stderr)  # noqa: T201
+        trace_path = loc
+    _save("error", "ERROR: " + message, trace_id, trace_path)
 
 postponed = []
 
-def _save(type: str, message: str, trace_id: str | None):
+def _save(type: str, message: str, trace_id: str | None, trace_path: Path | None = None):
     if log_file is None:
         postponed.append((type, message, trace_id))
         return
@@ -70,7 +63,9 @@ def _save(type: str, message: str, trace_id: str | None):
     time = xtime.time()
 
     trace_message = ""
-    if trace_id:
+    if trace_path:
+        trace_message = f" (trace '{trace_path}')"
+    elif trace_id:
         trace_message = f" (trace '{trace_id}')"
     message =  f"{message} {trace_message}"
 

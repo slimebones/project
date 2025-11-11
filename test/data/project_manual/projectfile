@@ -1,20 +1,22 @@
 project = @import("project")
 
 id = "project_1"
-modules = {
-    example: {
-        id: "python.example",
-        version: "0.1.0",
-    },
-    example2: {
-        id: "python.example2",
-        version: "0.4.0",
-    },
-}
 
 build = fn() {
     project.info("build.py")
     project.code("codes.py")
 
     project.includePython()
+}
+
+
+modules = {
+    "module_a": {
+        "id": "example.module_a",
+        "version": "latest",
+    },
+    "module_b": {
+        "id": "example.module_b",
+        "version": "latest",
+    },
 }

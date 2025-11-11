@@ -149,6 +149,8 @@ async def cmd_execute_all(function_name: str, args: YeletsFunctionArgs):
 
 
 async def main():
+    await log.ainit()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-cwd", type=Path, dest="cwd", default=Path.cwd())
     parser.add_argument("-v, -version", type=str, default="0.0.0", dest="version")
@@ -168,9 +170,6 @@ async def main():
     subparser.add_argument("positional", nargs="*", help="Positional arguments to a project's function.")
     subparser.add_argument("-kw", action="append", nargs=2, metavar=("KEY", "VALUE"), help="Keyword arguments to a project's function.")
 
-    # `project install`
-    subparsers.add_parser("install", help="Installs/Refreshes all project-specified dependencies.")
-
     # `project status`
     subparsers.add_parser("status", help="Show status.")
 
@@ -182,6 +181,19 @@ async def main():
 
     # `project update`
     subparsers.add_parser("update", help="Update from version control.")
+
+    # `project add`
+    subparser = subparsers.add_parser("add", help="Add a dependency.")
+    subparser.add_argument("dependency_name", type=str)
+    subparser.add_argument("-v", type=str, default="latest", dest="dependency_version")
+    subparser.add_argument("-o", type=Path, default=None, dest="output_dir")
+
+    # `project upload`
+    subparser = subparsers.add_parser("upload", help="Upload a module.")
+    subparser.add_argument("upload_dir", type=Path)
+
+    # `project install`
+    subparsers.add_parser("install", help="Installs/Refreshes all project-specified dependencies.")
 
     args = parser.parse_args()
     global cwd
@@ -203,6 +215,7 @@ async def main():
 
     projectfile = Path(cwd, "projectfile")
     response()
+    module.init(projectfile, target_version, target_debug, cwd, response)
     match args.command:
         case "execute":
             yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args_kw})
@@ -210,8 +223,6 @@ async def main():
         case "execute-all":
             yelets_args = YeletsFunctionArgs(args.positional, {kv[0]: kv[1] for kv in args_kw})
             await cmd_execute_all(args.function_name, yelets_args)
-        case "install":
-            module.install(projectfile, target_version, target_debug, cwd)
         case "template":
             pass
         case "status":
@@ -222,6 +233,12 @@ async def main():
             await cmd_update()
         case "push":
             await cmd_push()
+        case "add":
+            await module.cmd_add(args.dependency_name, args.dependency_version, args.output_dir)
+        case "upload":
+            await module.cmd_upload(args.upload_dir)
+        case "install":
+            await module.cmd_install()
         case _:
             raise Exception(f"unrecognized command '{args.command}'")
     response()
