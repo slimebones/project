@@ -1,6 +1,7 @@
+project = @import("project")
 id = "project_a"
 
 build = fn (a) {
-    $info("build.py")
-    $includePython()
+    project.info("build.py")
+    project.includePython()
 }
