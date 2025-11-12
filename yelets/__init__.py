@@ -16,16 +16,6 @@ from typing import Any
 import call
 
 
-def panic(message: str):
-    raise Exception("PANIC: " + message)
-
-
-BUILTIN = {
-    "panic": panic,
-    "Path": Path,
-}
-
-
 class Namespace:
     def __init__(self, **kwargs) -> None:
         self._data = kwargs
@@ -128,11 +118,8 @@ def execute(code: str, imports: dict | None = None) -> dict:
     final_imports = dict(**builtin_imports, **imports)
     python_code, globs = to_python(code, final_imports)
 
-    globals = {}
-    globals.update(BUILTIN)
-    globals.update(globs)
     locals = {}
-    exec(python_code, globals, locals)
+    exec(python_code, globs, locals)
     return locals
 
 
