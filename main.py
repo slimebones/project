@@ -1,5 +1,6 @@
 # Project management tool.
 
+from dotenv import load_dotenv
 import build
 
 import location
@@ -214,6 +215,8 @@ async def main():
         args_kw = {}
 
     projectfile = Path(cwd, "projectfile")
+    dotenvfile = Path(cwd, ".env")
+    load_dotenv(dotenvfile)
     response()
     module.init(projectfile, target_version, target_debug, cwd, response)
     match args.command:

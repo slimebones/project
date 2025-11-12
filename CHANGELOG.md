@@ -6,6 +6,8 @@
 * support yelets Path
 * extended project imports with information about the build
 * yelets: add `cmd` module, with functions such as `call`, with slightly changed signature that returns tuple instead of using a callback
+* load `.env` on project start
+* yelets: add `os` module
 
 --------------------------------------------------------------------------------
 0.2.0, 26 September 2025

@@ -14,6 +14,7 @@ import tarfile
 from typing import Any
 
 import call
+from dotenv import load_dotenv
 
 
 class Namespace:
