@@ -227,16 +227,26 @@ class Host:
     def setUser(self, user: str):
         self._user = user
 
-    def scp(self, from_path: Path, to_path: Path, *, port: int = 22):
+    def scp(self, from_path: PathLike, to_path: PathLike, *, port: int = 22):
         if not self._user:
             raise Exception(f"please set user first using a function `host.setUser()`")
 
-        retcode, _, stderr = call.call(f"scp -r -P {port} {from_path.resolve()} {self._user}@{self._host}:{to_path.resolve()}")
+        from_path = Path(from_path)
+        to_path = Path(to_path)
+        command = f"scp -r -P {port} {from_path.resolve()} {self._user}@{self._host}:{str(to_path).replace('\\', '/')}"
+        _response(command)
+        _, stderr, retcode = call.call(command)
         if retcode != 0:
             raise Exception(f"[host {self._host}] scp failed with retcode {retcode} and error {stderr}")
 
     def request(self, url: str, **kwargs) -> httpx.Response:
         return httpx.post(url, **kwargs)
+
+    def mustExecute(self, command: str, **kwargs) -> tuple[str, str]:
+        retcode, stdout, stderr = self.execute(command, **kwargs)
+        if retcode != 0:
+            raise Exception(f"retcode {retcode} while executing command '{command}', with stderr {stderr}")
+        return stdout, stderr
 
     def execute(self, command: str, *, background: bool = False, cwd: str | None = None, port: int = 6650) -> tuple[int, str, str]:
         """
@@ -250,6 +260,16 @@ class Host:
         }
         if cwd:
             payload["cwd"] = cwd
+
+        response_message = f"[host {self._host}] execute command '{command}'"
+        if not background:
+            response_message += f", background {background}"
+        if port != 6650:
+            response_message += f", port {port}"
+        if cwd is not None:
+            response_message += f", cwd '{cwd}'"
+        _response(response_message)
+
         r = self.request(f"http://{self._host}:{port}/main/execute", json=payload, headers={"secret": self._executor_secret})
         if r.status_code != 200:
             raise Exception(f"status error while executing: status {r.status_code}, text {r.text}")
