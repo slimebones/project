@@ -5,9 +5,15 @@ We either panic, or return something meaningful.
 """
 
 import argparse
+from yelets import cmd
+from os import PathLike
+import os
 from pathlib import Path
 import re
+import tarfile
 from typing import Any
+
+import call
 
 
 def panic(message: str):
@@ -114,7 +120,13 @@ def to_python(code: str, imports: dict | None = None) -> tuple[str, dict]:
 #
 # Returns resulting local namespace.
 def execute(code: str, imports: dict | None = None) -> dict:
-    python_code, globs = to_python(code, imports)
+    if imports is None:
+        imports = {}
+    builtin_imports = {
+        "cmd": cmd.yelets_module,
+    }
+    final_imports = dict(**builtin_imports, **imports)
+    python_code, globs = to_python(code, final_imports)
 
     globals = {}
     globals.update(BUILTIN)

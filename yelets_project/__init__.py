@@ -1,3 +1,4 @@
+import json
 from os import PathLike
 import os
 from pathlib import Path
@@ -9,6 +10,9 @@ from typing import TYPE_CHECKING, Callable
 import colorama
 import httpx
 
+import byteop
+import call
+from error import CodeError
 import xtime
 
 if TYPE_CHECKING:
@@ -65,36 +69,19 @@ def init(*, response: Callable, project: "Project", cwd: Path, indentation: str,
         raise Exception("Wrong version setup. Expected 'major.minor.patch' format.")
     _target_version = f"{major}.{minor}.{patch}"
 
+    return {
+        "info": info,
+        "code": code,
+        "includePython": includePython,
+        "include": include,
+        "Host": Host,
+        "project": _project,
+        "cwd": _cwd,
+        "target_version": _target_version,
+        "target_debug": target_debug,
+        "build_dir": _build_dir,
+    }
 
-def call(command: str, callback: Callable[[int, str], None] | None = None):
-    # Always call relatively to the current project.
-    loc = _project.source
-
-    # Use nushell command.
-    if "\"" in command:
-        _response(f"{colorama.Fore.YELLOW}WARNING{colorama.Fore.RESET}: Please, do not use double-quotes for 'call' commands - they will be replaced with single-quotes. Occurred for project '{_project.id}', command: {command}")
-        command = command.replace("\"", "'")
-    command = f"nu -c \"{command}\""
-
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=loc,
-        bufsize=1,
-        universal_newlines=True,
-    )
-    # @todo Make it parallel, somehow. For now it is printed only at the end of the subprocess. At least this behaviour is noticed at Windows.
-    if callback is not None:
-        if process.stdout is not None:
-            for line in process.stdout:
-                callback(1, line)
-        if process.stderr is not None:
-            for line in process.stderr:
-                callback(2, line)
-    code = process.wait()
-    if code != 0:
-        raise Exception(f"Call returned code {code}, location '{loc}', command: {command}")
 
 def code(target: PathLike):
     """
@@ -232,19 +219,31 @@ class Host:
     def __init__(self, host: str):
         self._host: str = host
         self._executor_secret: str | None = None
+        self._user: str | None = None
 
     def setExecutorSecret(self, secret: str):
         self._executor_secret = secret
 
+    def setUser(self, user: str):
+        self._user = user
+
+    def scp(self, from_path: Path, to_path: Path, *, port: int = 22):
+        if not self._user:
+            raise Exception(f"please set user first using a function `host.setUser()`")
+
+        retcode, _, stderr = call.call(f"scp -r -P {port} {from_path.resolve()} {self._user}@{self._host}:{to_path.resolve()}")
+        if retcode != 0:
+            raise Exception(f"[host {self._host}] scp failed with retcode {retcode} and error {stderr}")
+
     def request(self, url: str, **kwargs) -> httpx.Response:
         return httpx.post(url, **kwargs)
 
-    def execute(self, command: str, *, background: bool = False, cwd: str | None, port: int = 6650):
+    def execute(self, command: str, *, background: bool = False, cwd: str | None = None, port: int = 6650) -> tuple[int, str, str]:
         """
         Executes a command on the remote server, using `executor` service.
         """
         if not self._executor_secret:
-            raise Exception(f"please set executor secret first using function `host.setExecutorSecret()`")
+            raise Exception(f"please set executor secret first using a function `host.setExecutorSecret()`")
         payload = {
             "command": command,
             "background": background,
@@ -253,19 +252,15 @@ class Host:
             payload["cwd"] = cwd
         r = self.request(f"http://{self._host}:{port}/main/execute", json=payload, headers={"secret": self._executor_secret})
         if r.status_code != 200:
-            raise Exception(f"error while executing: status {r.status_code}, text {r.text}")
-        data = r.json()
+            raise Exception(f"status error while executing: status {r.status_code}, text {r.text}")
+
+        code, data = byteop.unwrap_coded_structure(r.content)
+        if code != 0:
+            data = data.decode()
+            raise CodeError(1, f"code error while executing: code {code}, text {data}")
+
+        data = json.loads(data)
         retcode = data["retcode"]
         stdout = data["stdout"]
         stderr = data["stderr"]
-        _response(f"(Host {self._host}): execution of a command '{command}' has been finished with a retcode {retcode}, stdout |{stdout}|, stderr |{stderr}|")
-
-
-imp = {
-    "info": info,
-    "code": code,
-    "call": call,
-    "includePython": includePython,
-    "include": include,
-    "Host": Host,
-}
+        return retcode, stdout, stderr

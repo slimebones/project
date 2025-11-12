@@ -35,7 +35,7 @@ class Project(BaseModel):
             modules={},
             context={},
         )
-        yelets_project.init(
+        project_imports = yelets_project.init(
             response=response,
             project=project,
             cwd=cwd,
@@ -44,7 +44,7 @@ class Project(BaseModel):
             target_debug=target_debug,
         )
         imports = {
-            "project": yelets_project.imp,
+            "project": project_imports,
         }
         ctx = yelets.execute_file(f, imports)
 

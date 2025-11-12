@@ -1,6 +1,12 @@
 project = @import("project")
 id = "project"
 
+build = fn() {
+    project.code("codes.py")
+}
+
 example = fn() {
-    host =
+    host = project.Host("81.163.30.25")
+    host.setExecutorSecret("arkansas")
+    host.execute("ls -a")
 }

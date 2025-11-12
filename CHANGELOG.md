@@ -4,6 +4,8 @@
 * support yelets if, for, while
 * support install, add and upload
 * support yelets Path
+* extended project imports with information about the build
+* yelets: add `cmd` module, with functions such as `call`, with slightly changed signature that returns tuple instead of using a callback
 
 --------------------------------------------------------------------------------
 0.2.0, 26 September 2025
