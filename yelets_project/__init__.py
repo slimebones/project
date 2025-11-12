@@ -233,8 +233,8 @@ class Host:
 
         from_path = Path(from_path)
         to_path = Path(to_path)
-        command = f"[host {self._host}] scp -r -P {port} {from_path.resolve()} {self._user}@{self._host}:{str(to_path).replace('\\', '/')}"
-        _response(command)
+        command = f"scp -r -P {port} {from_path.resolve()} {self._user}@{self._host}:{str(to_path).replace('\\', '/')}"
+        _response(f"[host {self._host}] " + command)
         _, stderr, retcode = call.call(command)
         if retcode != 0:
             raise Exception(f"[host {self._host}] scp failed with retcode {retcode} and error {stderr}")
