@@ -236,6 +236,9 @@ class Host:
     def setExecutorSecret(self, secret: str):
         self._executor_secret = secret
 
+    def request(self, url: str, **kwargs) -> httpx.Response:
+        return httpx.post(url, **kwargs)
+
     def execute(self, command: str, *, background: bool = False, cwd: str | None, port: int = 6650):
         """
         Executes a command on the remote server, using `executor` service.
@@ -248,7 +251,7 @@ class Host:
         }
         if cwd:
             payload["cwd"] = cwd
-        r = httpx.post(f"http://{self._host}:{port}/main/execute", json=payload, headers={"secret": self._executor_secret})
+        r = self.request(f"http://{self._host}:{port}/main/execute", json=payload, headers={"secret": self._executor_secret})
         if r.status_code != 200:
             raise Exception(f"error while executing: status {r.status_code}, text {r.text}")
         data = r.json()
