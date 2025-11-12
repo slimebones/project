@@ -33,7 +33,7 @@ def call(command: str, dir: Path | str | None = None) -> tuple[str, str, int]:
     return native_call.call(command, dir)
 
 
-yelets_module = {
+mod = {
     "tar": tar,
     "untar": untar,
     "trash": trash,

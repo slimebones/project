@@ -5,7 +5,7 @@ We either panic, or return something meaningful.
 """
 
 import argparse
-from yelets import cmd
+from yelets import cmd_module, os_module
 from os import PathLike
 import os
 from pathlib import Path
@@ -113,14 +113,14 @@ def execute(code: str, imports: dict | None = None) -> dict:
     if imports is None:
         imports = {}
     builtin_imports = {
-        "cmd": cmd.yelets_module,
+        "os": os_module.mod,
+        "cmd": cmd_module.mod,
     }
     final_imports = dict(**builtin_imports, **imports)
     python_code, globs = to_python(code, final_imports)
 
-    locals = {}
-    exec(python_code, globs, locals)
-    return locals
+    exec(python_code, globs)
+    return globs
 
 
 def execute_file(p: Path, imports: dict | None = None) -> dict:
