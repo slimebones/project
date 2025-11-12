@@ -262,7 +262,7 @@ class Host:
             payload["cwd"] = cwd
 
         response_message = f"[host {self._host}] execute command '{command}'"
-        if not background:
+        if background:
             response_message += f", background {background}"
         if port != 6650:
             response_message += f", port {port}"
