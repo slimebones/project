@@ -30,6 +30,14 @@ _codename_rules: str
 _build_dir: Path
 
 
+def get_cwd() -> Path:
+    return _cwd
+
+
+def get_project() -> "Project":
+    return _project
+
+
 def init(*, response: Callable, project: "Project", cwd: Path, indentation: str, target_version: str, target_debug: bool):
     global _response
     global _project
@@ -92,8 +100,12 @@ def code(target: PathLike):
     global _project_codes
     if _project_codes is None:
         _project_codes = []
-        # note that we always search `code.txt` under the current working directory
+        # note that we always search `code.txt` under the current working directory...
         code_path = Path(_cwd, "code.txt")
+        # ... or under the parent
+        if not code_path.exists():
+            code_path = Path(_cwd, "../code.txt")
+
         if code_path.exists():
             with code_path.open("r") as file:
                 lines = file.readlines()
@@ -231,7 +243,9 @@ class Host:
         if not self._user:
             raise Exception(f"please set user first using a function `host.setUser()`")
 
-        from_path = Path(from_path)
+        project_source = get_project().source
+
+        from_path = Path(project_source, from_path)
         to_path = Path(to_path)
         command = f"scp -r -P {port} {from_path.resolve()} {self._user}@{self._host}:{str(to_path).replace('\\', '/')}"
         _response(f"[host {self._host}] " + command)

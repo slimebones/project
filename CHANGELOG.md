@@ -1,4 +1,5 @@
 --------------------------------------------------------------------------------
+0.3.0, 17 November 2025
 
 * support yelets imports, project functions are now available under `@import("project")`
 * support yelets if, for, while
@@ -8,6 +9,8 @@
 * yelets: add `cmd` module, with functions such as `call`, with slightly changed signature that returns tuple instead of using a callback
 * load `.env` on project start
 * yelets: add `os` module
+* adaptive search of codes.txt
+* corrected all paths for yelets calls to be relative to the target project's source
 
 --------------------------------------------------------------------------------
 0.2.0, 26 September 2025
